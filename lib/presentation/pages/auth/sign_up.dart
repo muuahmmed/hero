@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hero/presentation/pages/auth/cubit/auth_cubit.dart';
-
 import 'cubit/auth_states.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -40,13 +39,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: BlocConsumer<AuthCubit, AuthState>(
             listener: (context, state) {
               if (state is AuthRegistered) {
+                print('✅ Registration successful, navigating to /home');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Account created successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
                 context.go('/home');
               }
               if (state is AuthError) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(state.message),
+                    content: Text('❌ ${state.message}'),
                     backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               }
@@ -70,10 +77,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Full Name',
                             prefixIcon: Icon(Icons.person),
+                            border: OutlineInputBorder(),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter full name';
+                              return 'Please enter your full name';
                             }
                             return null;
                           },
@@ -82,12 +90,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         TextFormField(
                           controller: _emailController,
                           decoration: const InputDecoration(
-                            labelText: 'Email',
+                            labelText: 'Email Address',
                             prefixIcon: Icon(Icons.email),
+                            border: OutlineInputBorder(),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter email';
+                              return 'Please enter your email address';
+                            }
+                            if (!value.contains('@') || !value.contains('.')) {
+                              return 'Please enter a valid email address';
                             }
                             return null;
                           },
@@ -100,22 +112,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
                                 });
                               },
                             ),
+                            border: const OutlineInputBorder(),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter password';
+                              return 'Please enter your password';
                             }
                             if (value.length < 6) {
-                              return 'Password must be 6+ characters';
+                              return 'Password must be at least 6 characters';
                             }
                             return null;
                           },
@@ -128,20 +143,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             labelText: 'Confirm Password',
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirmPassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureConfirmPassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () {
                                 setState(() {
                                   _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
+                                      !_obscureConfirmPassword;
                                 });
                               },
                             ),
+                            border: const OutlineInputBorder(),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please confirm password';
+                              return 'Please confirm your password';
                             }
                             if (value != _passwordController.text) {
                               return 'Passwords do not match';
@@ -162,7 +180,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             const Expanded(
                               child: Text(
-                                'I agree to Terms & Privacy',
+                                'I agree to the Terms & Conditions',
                                 style: TextStyle(fontSize: 14),
                               ),
                             ),
@@ -173,20 +191,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: _agreeToTerms
+                            onPressed: _agreeToTerms && state is! AuthLoading
                                 ? () {
-                              if (_formKey.currentState!.validate()) {
-                                context.read<AuthCubit>().register(
-                                  _emailController.text.trim(),
-                                  _passwordController.text,
-                                  _fullNameController.text.trim(),
-                                );
-                              }
-                            }
+                                    if (_formKey.currentState!.validate()) {
+                                      print(
+                                        '📝 Starting registration process...',
+                                      );
+                                      context.read<AuthCubit>().register(
+                                        _emailController.text.trim(),
+                                        _passwordController.text,
+                                        _fullNameController.text.trim(),
+                                      );
+                                    }
+                                  }
                                 : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                             child: state is AuthLoading
-                                ? const CircularProgressIndicator()
-                                : const Text('Create Account'),
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Create Account',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,color: Colors.white
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -231,24 +271,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: const Icon(
             Icons.fitness_center,
             size: 40,
-            color: Color(0xFF10B981),
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 20),
         const Text(
-          'Create Account',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+          'Create New Account',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         const Text(
-          'Join Hero Fitness community',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
+          'Join the Hero Fitness community',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
         ),
       ],
     );

@@ -1,65 +1,76 @@
 import 'package:hero/data/services/shared_prefrences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
-import '../models/user_model.dart';
+import '../models/user_model.dart' as models;
 
 class SupabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<User?> signIn(String email, String password) async {
+  Future<models.AppUser?> signIn(String email, String password) async {
     try {
+      print('🔐 محاولة تسجيل الدخول: $email');
+
       final response = await _supabase.auth.signInWithPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
 
       if (response.user != null && response.session != null) {
+        print('✅ نجح تسجيل الدخول: ${response.user!.email}');
+
         await SessionManager.saveSession(
           response.session!.accessToken,
           response.user!.email!,
         );
 
-        print('✅ Login successful, session saved');
-
-        return User(
+        return models.AppUser(
           id: response.user!.id,
           email: response.user!.email!,
-          fullName: response.user!.userMetadata?['full_name'],
+          fullName: response.user!.userMetadata?['full_name'] ?? 'User',
         );
       }
       return null;
     } catch (e) {
       print('❌ خطأ في تسجيل الدخول: $e');
-      throw Exception('Login failed: $e');
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 
-  Future<User?> signUp(String email, String password, String fullName) async {
+  Future<models.AppUser?> signUp(String email, String password, String fullName) async {
     try {
+      print('📝 محاولة التسجيل: $email');
+
       final response = await _supabase.auth.signUp(
-        email: email,
+        email: email.trim(),
         password: password,
-        data: {'full_name': fullName},
+        data: {'full_name': fullName.trim()},
       );
 
-      if (response.user != null && response.session != null) {
-        // ✅ حفظ الجلسة في SharedPreferences
-        await SessionManager.saveSession(
-          response.session!.accessToken,
-          response.user!.email!,
-        );
+      print('📊 استجابة التسجيل: ${response.user != null}');
 
-        print('✅ Registration successful, session saved');
+      if (response.user != null) {
+        print('✅ نجح التسجيل في Authentication');
 
-        return User(
+        // احفظ الجلسة إذا كانت موجودة
+        if (response.session != null) {
+          await SessionManager.saveSession(
+            response.session!.accessToken,
+            response.user!.email!,
+          );
+          print('✅ تم حفظ الجلسة');
+        }
+
+        return models.AppUser(
           id: response.user!.id,
           email: response.user!.email!,
           fullName: fullName,
         );
       }
+
+      print('⚠️ لم يتم إنشاء مستخدم في Authentication');
       return null;
     } catch (e) {
       print('❌ خطأ في التسجيل: $e');
-      throw Exception('Signup failed: $e');
+      throw Exception('Signup failed: ${e.toString()}');
     }
   }
 
@@ -74,37 +85,36 @@ class SupabaseService {
     }
   }
 
-  Future<User?> getCurrentUser() async {
+  Future<models.AppUser?> getCurrentUser() async {
     try {
-
       var user = _supabase.auth.currentUser;
 
       if (user != null) {
-        print('✅ Found user in Supabase: ${user.email}');
-        return User(
+        print('✅ وجد مستخدم في Supabase: ${user.email}');
+        return models.AppUser(
           id: user.id,
           email: user.email!,
-          fullName: user.userMetadata?['full_name'],
+          fullName: user.userMetadata?['full_name'] ?? 'User',
         );
       }
 
       final savedSession = await SessionManager.getSession();
       if (savedSession != null) {
-        print('🔄 Trying to restore session from saved data...');
+        print('🔄 محاولة استعادة الجلسة من البيانات المحفوظة...');
         try {
           await _supabase.auth.recoverSession(savedSession['token']!);
           user = _supabase.auth.currentUser;
 
           if (user != null) {
-            print('✅ Session restored successfully: ${user.email}');
-            return User(
+            print('✅ تمت استعادة الجلسة بنجاح: ${user.email}');
+            return models.AppUser(
               id: user.id,
               email: user.email!,
-              fullName: user.userMetadata?['full_name'],
+              fullName: user.userMetadata?['full_name'] ?? 'User',
             );
           }
         } catch (e) {
-          print('⚠️ Failed to restore session: $e');
+          print('⚠️ فشل في استعادة الجلسة: $e');
         }
       }
 

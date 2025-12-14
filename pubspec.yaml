@@ -28,6 +28,7 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.3.3
   flutter_dotenv: ^5.1.0
+  dynamic_height_list_view:
 
 
 dev_dependencies:

@@ -289,6 +289,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  dynamic_height_list_view:
+    dependency: "direct main"
+    description:
+      name: dynamic_height_list_view
+      sha256: f69412fac854233fe3517f2def600b977d46b2a16fd3cd6c0c737025e8d1424a
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.2"
   ed25519_edwards:
     dependency: transitive
     description:

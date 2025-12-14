@@ -13,8 +13,9 @@ class Product {
   final String? size;
   final String? scope;
   final bool isActive;
-  final bool? isFavorite; // Add this
-  final bool? featured; // Add this for featured products
+  final bool? isFavorite;
+  final bool? featured;
+  final String? imageUrl;
 
   Product({
     required this.id,
@@ -31,8 +32,9 @@ class Product {
     this.size,
     this.scope,
     required this.isActive,
-    this.isFavorite = false, // Default to false
-    this.featured = false, // Default to false
+    this.isFavorite = false,
+    this.featured = false,
+    this.imageUrl,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class Product {
       isActive: json['is_active'] as bool,
       isFavorite: json['is_favorite'] as bool? ?? false,
       featured: json['featured'] as bool? ?? false,
+      imageUrl: json['image_url'] as String?,
     );
   }
 
@@ -74,10 +77,10 @@ class Product {
       'is_active': isActive,
       'is_favorite': isFavorite,
       'featured': featured,
+      'image_url': imageUrl,
     };
   }
 
-  // Add copyWith method
   Product copyWith({
     int? id,
     String? name,
@@ -95,6 +98,7 @@ class Product {
     bool? isActive,
     bool? isFavorite,
     bool? featured,
+    String? imageUrl,
   }) {
     return Product(
       id: id ?? this.id,
@@ -113,6 +117,17 @@ class Product {
       isActive: isActive ?? this.isActive,
       isFavorite: isFavorite ?? this.isFavorite,
       featured: featured ?? this.featured,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
+  }
+
+  String getImageUrl() {
+    // استخدم الرابط المخزن في قاعدة البيانات
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return imageUrl!;
+    }
+
+    // صورة افتراضية إذا لم توجد
+    return 'https://via.placeholder.com/300x300/3B82F6/FFFFFF?text=${Uri.encodeComponent(name)}';
   }
 }
