@@ -55,10 +55,10 @@ class _PersonalScreenState extends State<PersonalScreen> {
           IconButton(
             icon: _isLoggingOut
                 ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.logout),
             onPressed: () => _handleLogout(context),
           ),
@@ -78,11 +78,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
                     child: CircleAvatar(
                       radius: 50,
                       backgroundColor: Colors.blue.shade100,
-                      child: Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Colors.blue,
-                      ),
+                      child: Icon(Icons.person, size: 50, color: Colors.blue),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -98,10 +94,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
                   Center(
                     child: Text(
                       user.email,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -111,15 +104,29 @@ class _PersonalScreenState extends State<PersonalScreen> {
                     subtitle: Text(user.email),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.person, color: Colors.blue),
-                    title: const Text('Account ID'),
-                    subtitle: Text('${user.id.substring(0, 8)}...'),
+                    leading: const Icon(Icons.phone, color: Colors.blue),
+                    title: const Text('Phone'),
+                    subtitle: Text(user.phone ?? 'Not provided'),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.date_range, color: Colors.blue),
-                    title: const Text('Member since'),
-                    subtitle: const Text('Recently joined'),
+                    leading: const Icon(
+                      Icons.person_outline,
+                      color: Colors.blue,
+                    ),
+                    title: const Text('Full Name'),
+                    subtitle: Text(user.fullName),
                   ),
+
+                  // ListTile(
+                  //   leading: const Icon(Icons.person, color: Colors.blue),
+                  //   title: const Text('Account ID'),
+                  //   subtitle: Text('${user.id.substring(0, 8)}...'),
+                  // ),
+                  // ListTile(
+                  //   leading: const Icon(Icons.date_range, color: Colors.blue),
+                  //   title: const Text('Member since'),
+                  //   subtitle: const Text('Recently joined'),
+                  // ),
                 ],
               ),
             );

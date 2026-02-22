@@ -1,4 +1,4 @@
-import 'package:hero/data/services/shared_prefrences.dart';
+import 'package:hero/data/services/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/user_model.dart' as models;
 
@@ -7,7 +7,7 @@ class SupabaseService {
 
   Future<models.AppUser?> signIn(String email, String password) async {
     try {
-      print('🔐 محاولة تسجيل الدخول: $email');
+      print('try to login $email');
 
       final response = await _supabase.auth.signInWithPassword(
         email: email.trim(),
@@ -15,7 +15,7 @@ class SupabaseService {
       );
 
       if (response.user != null && response.session != null) {
-        print('✅ نجح تسجيل الدخول: ${response.user!.email}');
+        print('login is successful ${response.user!.email}');
 
         await SessionManager.saveSession(
           response.session!.accessToken,
@@ -30,14 +30,14 @@ class SupabaseService {
       }
       return null;
     } catch (e) {
-      print('❌ خطأ في تسجيل الدخول: $e');
+      print('login is failed $e');
       throw Exception('Login failed: ${e.toString()}');
     }
   }
 
   Future<models.AppUser?> signUp(String email, String password, String fullName) async {
     try {
-      print('📝 محاولة التسجيل: $email');
+      print('📝signing up $email');
 
       final response = await _supabase.auth.signUp(
         email: email.trim(),
@@ -45,18 +45,17 @@ class SupabaseService {
         data: {'full_name': fullName.trim()},
       );
 
-      print('📊 استجابة التسجيل: ${response.user != null}');
+      print('📊sign up successful ${response.user != null}');
 
       if (response.user != null) {
-        print('✅ نجح التسجيل في Authentication');
+        print('Authentication successful for ${response.user!.email}');
 
-        // احفظ الجلسة إذا كانت موجودة
         if (response.session != null) {
           await SessionManager.saveSession(
             response.session!.accessToken,
             response.user!.email!,
           );
-          print('✅ تم حفظ الجلسة');
+          print('✅ Session saved for new user: ${response.user!.email}');
         }
 
         return models.AppUser(
@@ -66,10 +65,10 @@ class SupabaseService {
         );
       }
 
-      print('⚠️ لم يتم إنشاء مستخدم في Authentication');
+      print('⚠️ Sign up completed but no user returned');
       return null;
     } catch (e) {
-      print('❌ خطأ في التسجيل: $e');
+      print('Signing up is not completed $e');
       throw Exception('Signup failed: ${e.toString()}');
     }
   }
@@ -78,10 +77,10 @@ class SupabaseService {
     try {
       await _supabase.auth.signOut();
       await SessionManager.clearSession();
-      print('✅ تم تسجيل الخروج وجلسة محذوفة');
+      print('sign out is successful');
     } catch (e) {
-      print('❌ خطأ في تسجيل الخروج: $e');
-      throw Exception('Signout failed: $e');
+      print('sign out is not completed $e');
+      throw Exception('Sign out failed: $e');
     }
   }
 
@@ -90,7 +89,7 @@ class SupabaseService {
       var user = _supabase.auth.currentUser;
 
       if (user != null) {
-        print('✅ وجد مستخدم في Supabase: ${user.email}');
+        print(' Supabase user is found ${user.email}');
         return models.AppUser(
           id: user.id,
           email: user.email!,
@@ -100,13 +99,13 @@ class SupabaseService {
 
       final savedSession = await SessionManager.getSession();
       if (savedSession != null) {
-        print('🔄 محاولة استعادة الجلسة من البيانات المحفوظة...');
+        print(' Found saved session for ${savedSession['email']}');
         try {
           await _supabase.auth.recoverSession(savedSession['token']!);
           user = _supabase.auth.currentUser;
 
           if (user != null) {
-            print('✅ تمت استعادة الجلسة بنجاح: ${user.email}');
+            print(' Supabase user is found ${user.email}');
             return models.AppUser(
               id: user.id,
               email: user.email!,
@@ -114,15 +113,15 @@ class SupabaseService {
             );
           }
         } catch (e) {
-          print('⚠️ فشل في استعادة الجلسة: $e');
+          print('Error recovering session: $e');
         }
       }
 
-      print('⚠️ لا يوجد مستخدم حالي');
+      print('No user is currently authenticated');
       return null;
 
     } catch (e) {
-      print('❌ خطأ في جلب المستخدم الحالي: $e');
+      print('Error getting current user: $e');
       return null;
     }
   }

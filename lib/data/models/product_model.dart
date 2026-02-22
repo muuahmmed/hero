@@ -122,12 +122,10 @@ class Product {
   }
 
   String getImageUrl() {
-    // استخدم الرابط المخزن في قاعدة البيانات
     if (imageUrl != null && imageUrl!.isNotEmpty) {
       return imageUrl!;
     }
 
-    // صورة افتراضية إذا لم توجد
     return 'https://via.placeholder.com/300x300/3B82F6/FFFFFF?text=${Uri.encodeComponent(name)}';
   }
 }

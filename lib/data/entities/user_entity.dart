@@ -14,7 +14,6 @@ class UserEntity {
   });
 }
 
-// lib/data/models/user_model.dart
 class UserModel extends UserEntity {
   UserModel({
     required super.id,
