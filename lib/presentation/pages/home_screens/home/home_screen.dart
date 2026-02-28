@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../data/models/category_model.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../data/models/product_model.dart';
+import '../../../../data/services/category_service.dart';
 import '../Product_Card/Product_Card_widget.dart';
+import '../Product_Card/Product_detail_screen.dart';
+import '../cart_screen/cart_cubit/cart_cubit.dart';
+import '../cart_screen/cart_cubit/cart_states.dart';
 import '../categories/categories_cubit/categories_cubit.dart';
 import '../categories/categories_cubit/categories_states.dart';
 import '../categories/categories_screen.dart';
 import '../home_cubit/home_cubit.dart';
 import '../home_cubit/home_states.dart';
 import '../section_header/section_header_screen.dart';
-import '../../../../data/services/category_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,11 +26,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   late final CategoriesCubit _categoriesCubit;
 
+  int? _selectedCategoryId;
+  String? _selectedCategoryName;
+
   @override
   void initState() {
     super.initState();
     _categoriesCubit = CategoriesCubit(CategoryService());
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeCubit>().fetchProducts();
       context.read<HomeCubit>().fetchFeaturedProducts();
@@ -43,21 +48,33 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _clearCategoryFilter() {
+    setState(() {
+      _selectedCategoryId = null;
+      _selectedCategoryName = null;
+    });
+  }
+
+  // Safe helper — returns null if CartCubit is not in the tree
+  CartCubit? get _cartCubit {
+    try {
+      return context.read<CartCubit>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: Column(
           children: [
-            // 🔹 Header with Search
             _buildHeader(context),
-
-            // 🔹 Main Content
             Expanded(
               child: BlocBuilder<HomeCubit, HomeState>(
-                builder: (context, state) {
-                  return _buildContent(context, state);
-                },
+                builder: (context, state) => _buildContent(context, state),
               ),
             ),
           ],
@@ -66,14 +83,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // HEADER
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -82,15 +103,19 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Text
           Row(
             children: [
+              // Brand icon
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.fitness_center,
@@ -99,6 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+
+              // Tagline
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,44 +138,54 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Text(
                       'Premium supplements for your journey',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
+
+              // Cart button — safe: works even without CartCubit in tree
+              _buildCartButton(context),
             ],
           ),
-          const SizedBox(height: 16),
 
-          // Search Bar
+          const SizedBox(height: 14),
+
+          // Search bar
           Container(
             decoration: BoxDecoration(
               color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.grey[200]!),
             ),
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
+                setState(() {});
                 context.read<HomeCubit>().searchProducts(value);
               },
               decoration: InputDecoration(
-                hintText: 'Search products...',
-                hintStyle: const TextStyle(color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                hintText: 'Search supplements, protein...',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                 border: InputBorder.none,
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear, size: 20),
-                  onPressed: () {
-                    _searchController.clear();
-                    context.read<HomeCubit>().fetchProducts();
-                  },
-                )
+                        icon: const Icon(Icons.clear, size: 18),
+                        color: Colors.grey[400],
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                          context.read<HomeCubit>().fetchProducts();
+                        },
+                      )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -157,104 +194,209 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Cart button that degrades gracefully when CartCubit is absent.
+  Widget _buildCartButton(BuildContext context) {
+    // If CartCubit is not provided above, render a simple icon without a badge
+    final hasCubit =
+        context.findAncestorWidgetOfExactType<BlocProvider<CartCubit>>() !=
+        null;
+
+    if (!hasCubit) {
+      return GestureDetector(
+        onTap: () => context.go('/cart'),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.shopping_cart_outlined,
+            color: Colors.black87,
+            size: 22,
+          ),
+        ),
+      );
+    }
+
+    return BlocBuilder<CartCubit, CartState>(
+      builder: (context, cartState) {
+        final itemCount = cartState is CartLoaded
+            ? cartState.items.fold<int>(0, (sum, item) => sum + item.quantity)
+            : 0;
+        return GestureDetector(
+          onTap: () => context.go('/cart'),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.shopping_cart_outlined,
+                  color: Colors.black87,
+                  size: 22,
+                ),
+              ),
+              if (itemCount > 0)
+                Positioned(
+                  top: -4,
+                  right: -4,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF3B82F6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        itemCount > 9 ? '9+' : '$itemCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONTENT ROUTER
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildContent(BuildContext context, HomeState state) {
-    if (state is HomeLoading) {
-      return _buildLoading();
-    }
-
-    if (state is HomeError) {
-      return _buildError(context, state);
-    }
-
-    if (state is HomeLoaded) {
-      return _buildLoadedContent(context, state);
-    }
-
+    if (state is HomeLoading) return _buildLoading();
+    if (state is HomeError) return _buildError(context, state);
+    if (state is HomeLoaded) return _buildLoadedContent(context, state);
     return _buildEmpty();
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LOADING
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildLoading() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(
-              const Color(0xFF3B82F6),
-            ),
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
           ),
           const SizedBox(height: 16),
           Text(
             'Loading products...',
-            style: TextStyle(
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(color: Colors.grey[600]),
           ),
         ],
       ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ERROR
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildError(BuildContext context, HomeError state) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red[400],
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              state.error,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => context.read<HomeCubit>().fetchProducts(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 50,
+                color: Colors.red[400],
               ),
             ),
-            child: const Text('Retry'),
-          ),
-        ],
+            const SizedBox(height: 20),
+            const Text(
+              'Something went wrong',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.read<HomeCubit>().fetchProducts(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildLoadedContent(BuildContext context, HomeLoaded state) {
-    final hasProducts = state.products.isNotEmpty;
-    final hasFeatured = state.featuredProducts?.isNotEmpty ?? false;
+  // ─────────────────────────────────────────────────────────────────────────
+  // LOADED CONTENT
+  // ─────────────────────────────────────────────────────────────────────────
 
-    if (!hasProducts) {
-      return _buildEmpty();
-    }
+  Widget _buildLoadedContent(BuildContext context, HomeLoaded state) {
+    if (state.products.isEmpty) return _buildEmpty();
+
+    final List<Product> displayedProducts = _selectedCategoryId != null
+        ? state.products
+              .where((p) => p.categoryId == _selectedCategoryId)
+              .toList()
+        : state.products;
+
+    final bool isSearching = _searchController.text.isNotEmpty;
 
     return RefreshIndicator(
       onRefresh: () async {
-        await context.read<HomeCubit>().fetchProducts();
-        await context.read<HomeCubit>().fetchFeaturedProducts();
+        _clearCategoryFilter();
+        final homeCubit = context.read<HomeCubit>();
+        await homeCubit.fetchProducts();
+        await homeCubit.fetchFeaturedProducts();
         await _categoriesCubit.fetchCategories();
       },
+      color: const Color(0xFF3B82F6),
       child: ListView(
         controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // 🔹 Featured Products Section
-          if (hasFeatured) ...[
+          // ── Featured Products ────────────────────────────────────────
+          if (state.featuredProducts?.isNotEmpty == true &&
+              _selectedCategoryId == null &&
+              !isSearching) ...[
             SectionHeader(
               title: '⭐ Featured Products',
-              onSeeAll: () {
-                // Navigate to featured products page
-              },
+              onSeeAll: () =>
+                  _showAllFeatured(context, state.featuredProducts!),
             ),
             SizedBox(
               height: 240,
@@ -267,17 +409,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Container(
                     width: 180,
                     margin: EdgeInsets.only(
-                      right: index == state.featuredProducts!.length - 1 ? 0 : 12,
+                      right: index == state.featuredProducts!.length - 1
+                          ? 0
+                          : 12,
                     ),
                     child: ProductCard(
                       product: product,
                       isFeatured: true,
-                      onTap: () {
-                        _showProductDetails(context, product);
-                      },
-                      onFavoriteToggle: () {
-                        context.read<HomeCubit>().toggleProductFavorite(product.id);
-                      },
+                      onTap: () => _navigateToProduct(context, product),
+                      onFavoriteToggle: () => context
+                          .read<HomeCubit>()
+                          .toggleProductFavorite(product.id),
                     ),
                   );
                 },
@@ -286,22 +428,61 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
           ],
 
-          // 🔹 Categories Section
-          _buildCategoriesSection(context),
+          // ── Categories Row ───────────────────────────────────────────
+          if (!isSearching) _buildCategoriesSection(context),
 
-          // 🔹 All Products Section
+          // ── Active Filter Chip ───────────────────────────────────────
+          if (_selectedCategoryId != null && _selectedCategoryName != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.filter_list,
+                    size: 18,
+                    color: Color(0xFF3B82F6),
+                  ),
+                  const SizedBox(width: 8),
+                  Chip(
+                    label: Text(_selectedCategoryName!),
+                    backgroundColor: const Color(0xFF3B82F6).withOpacity(0.1),
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF3B82F6),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    deleteIcon: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Color(0xFF3B82F6),
+                    ),
+                    onDeleted: _clearCategoryFilter,
+                    side: BorderSide.none,
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Products Grid Header ─────────────────────────────────────
           SectionHeader(
-            title: '🛍️ All Products',
-            onSeeAll: () {
-              // Navigate to all products page
-            },
+            title: _selectedCategoryName != null
+                ? '🛍️ $_selectedCategoryName'
+                : '🛍️ All Products',
+            onSeeAll: null,
           ),
-          // Use a simpler approach for the grid
-          _buildSimpleProductsGrid(state.products),
+
+          // ── Products Grid or Empty ───────────────────────────────────
+          if (displayedProducts.isEmpty)
+            _buildCategoryEmpty()
+          else
+            _buildProductsGrid(context, displayedProducts),
         ],
       ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CATEGORIES SECTION
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildCategoriesSection(BuildContext context) {
     return BlocBuilder<CategoriesCubit, CategoriesState>(
@@ -312,14 +493,23 @@ class _HomeScreenState extends State<HomeScreen> {
             SectionHeader(
               title: '📂 Categories',
               onSeeAll: () {
-                // Navigate to full categories screen
+                // Pass CartCubit down only if it exists
+                final cart = _cartCubit;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BlocProvider.value(
-                      value: _categoriesCubit,
-                      child: const CategoriesScreen(),
-                    ),
+                    builder: (context) {
+                      final providers = <BlocProvider>[
+                        BlocProvider.value(value: _categoriesCubit),
+                      ];
+                      if (cart != null) {
+                        providers.add(BlocProvider.value(value: cart));
+                      }
+                      return MultiBlocProvider(
+                        providers: providers,
+                        child: const CategoriesScreen(),
+                      );
+                    },
                   ),
                 );
               },
@@ -347,20 +537,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (state is CategoriesError) {
       return SizedBox(
-        height: 100,
+        height: 80,
         child: Center(
-          child: Text(
-            'Failed to load categories',
-            style: TextStyle(color: Colors.grey[500]),
+          child: TextButton.icon(
+            onPressed: () => _categoriesCubit.fetchCategories(),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Retry loading categories'),
           ),
         ),
       );
     }
 
     if (state is CategoriesLoaded) {
-      final categories = state.categories.take(5).toList();
+      final categories = state.categories.take(8).toList();
       return SizedBox(
-        height: 120,
+        height: 110,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -368,55 +559,78 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, index) {
             final category = categories[index];
             final categoryColor = _getCategoryColor(category.name);
+            final isSelected = _selectedCategoryId == category.id;
 
             return GestureDetector(
               onTap: () {
-                _showCategoryProducts(context, category);
+                setState(() {
+                  if (isSelected) {
+                    _selectedCategoryId = null;
+                    _selectedCategoryName = null;
+                  } else {
+                    _selectedCategoryId = category.id;
+                    _selectedCategoryName = category.name;
+                  }
+                });
               },
-              child: Container(
-                width: 100,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 80,
                 margin: EdgeInsets.only(
-                    right: index == categories.length - 1 ? 0 : 12),
+                  right: index == categories.length - 1 ? 0 : 12,
+                ),
                 child: Column(
                   children: [
-                    // Category Icon Circle
-                    Container(
-                      width: 70,
-                      height: 70,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            categoryColor,
-                            categoryColor.withOpacity(0.7),
-                          ],
+                          colors: isSelected
+                              ? [categoryColor, categoryColor.withOpacity(0.7)]
+                              : [
+                                  categoryColor.withOpacity(0.15),
+                                  categoryColor.withOpacity(0.08),
+                                ],
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: categoryColor.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: categoryColor.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : [],
+                        border: Border.all(
+                          color: isSelected
+                              ? categoryColor
+                              : categoryColor.withOpacity(0.2),
+                          width: isSelected ? 2 : 1,
+                        ),
                       ),
                       child: Center(
                         child: Icon(
                           _getCategoryIcon(category.name),
-                          color: Colors.white,
-                          size: 30,
+                          color: isSelected ? Colors.white : categoryColor,
+                          size: 28,
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Category Name
                     Text(
                       category.name,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        color: isSelected ? categoryColor : Colors.grey[700],
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -433,71 +647,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return const SizedBox.shrink();
   }
 
-  // Helper methods for HomeScreen
-  Color _getCategoryColor(String categoryName) {
-    final lowerName = categoryName.toLowerCase();
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRODUCTS GRID
+  // ─────────────────────────────────────────────────────────────────────────
 
-    if (lowerName.contains('mass') || lowerName.contains('gain')) {
-      return const Color(0xFFFF9800);
-    } else if (lowerName.contains('protein') || lowerName.contains('whey')) {
-      return const Color(0xFF2196F3);
-    } else if (lowerName.contains('creatine')) {
-      return const Color(0xFF9C27B0);
-    } else if (lowerName.contains('fat') || lowerName.contains('burn')) {
-      return const Color(0xFFF44336);
-    } else if (lowerName.contains('vitamin')) {
-      return const Color(0xFF4CAF50);
-    } else if (lowerName.contains('accessory') || lowerName.contains('equipment')) {
-      return const Color(0xFF795548);
-    } else if (lowerName.contains('pre-workout')) {
-      return const Color(0xFFFF5722);
-    } else if (lowerName.contains('amino') || lowerName.contains('eaa')) {
-      return const Color(0xFF00BCD4);
-    }
-    return const Color(0xFF3B82F6);
-  }
-
-  IconData _getCategoryIcon(String categoryName) {
-    final lowerName = categoryName.toLowerCase();
-
-    if (lowerName.contains('mass') || lowerName.contains('gain')) {
-      return Icons.monitor_weight;
-    } else if (lowerName.contains('protein') || lowerName.contains('whey')) {
-      return Icons.fitness_center;
-    } else if (lowerName.contains('creatine')) {
-      return Icons.bolt;
-    } else if (lowerName.contains('fat') || lowerName.contains('burn')) {
-      return Icons.fireplace;
-    } else if (lowerName.contains('vitamin') || lowerName.contains('supplement')) {
-      return Icons.health_and_safety;
-    } else if (lowerName.contains('accessory') || lowerName.contains('equipment')) {
-      return Icons.sports;
-    } else if (lowerName.contains('pre-workout')) {
-      return Icons.energy_savings_leaf;
-    } else if (lowerName.contains('amino') || lowerName.contains('eaa')) {
-      return Icons.science;
-    }
-    return Icons.category;
-  }
-
-  void _showCategoryProducts(BuildContext context, Category category) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Showing ${category.name} products...'),
-        duration: const Duration(milliseconds: 500),
-      ),
-    );
-
-    // TODO: Navigate to category products screen
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => CategoryProductsScreen(category: category),
-    //   ),
-    // );
-  }
-
-  Widget _buildSimpleProductsGrid(List<Product> products) {
+  Widget _buildProductsGrid(BuildContext context, List<Product> products) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
@@ -509,19 +663,16 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.65, // Adjusted for better fit
+            childAspectRatio: 0.62,
           ),
           itemCount: products.length,
           itemBuilder: (context, index) {
             final product = products[index];
             return ProductCard(
               product: product,
-              onTap: () {
-                _showProductDetails(context, product);
-              },
-              onFavoriteToggle: () {
-                context.read<HomeCubit>().toggleProductFavorite(product.id);
-              },
+              onTap: () => _navigateToProduct(context, product),
+              onFavoriteToggle: () =>
+                  context.read<HomeCubit>().toggleProductFavorite(product.id),
             );
           },
         );
@@ -529,16 +680,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // EMPTY STATES
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildEmpty() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.shopping_bag_outlined,
-            size: 80,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.shopping_bag_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             'No products found',
@@ -551,74 +702,104 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           Text(
             'Try searching for something else',
-            style: TextStyle(
-              color: Colors.grey[400],
-            ),
+            style: TextStyle(color: Colors.grey[400]),
           ),
         ],
       ),
     );
   }
 
-  void _showProductDetails(BuildContext context, Product product) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(product.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: NetworkImage(product.getImageUrl()),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              product.description,
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Price: ${product.price} EGP',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF3B82F6),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Stock: ${product.stock} available',
-              style: TextStyle(
-                fontSize: 14,
-                color: product.stock > 0 ? Colors.green : Colors.red,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+  Widget _buildCategoryEmpty() {
+    return Padding(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        children: [
+          Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          Text(
+            'No products in this category',
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
           ),
-          ElevatedButton(
-            onPressed: () {
-              // Add to cart functionality
-              Navigator.pop(context);
-            },
-            child: const Text('Add to Cart'),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _clearCategoryFilter,
+            child: const Text('Show all products'),
           ),
         ],
       ),
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // NAVIGATION HELPERS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _navigateToProduct(BuildContext context, Product product) {
+    final cart = _cartCubit;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          if (cart != null) {
+            return BlocProvider.value(
+              value: cart,
+              child: ProductDetailScreen(product: product),
+            );
+          }
+          return ProductDetailScreen(product: product);
+        },
+      ),
+    );
+  }
+
+  void _showAllFeatured(BuildContext context, List<Product> products) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Showing all featured products'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CATEGORY COLOR & ICON HELPERS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Color _getCategoryColor(String categoryName) {
+    final n = categoryName.toLowerCase();
+    if (n.contains('mass') || n.contains('gain')) {
+      return const Color(0xFFFF9800);
+    }
+    if (n.contains('protein') || n.contains('whey')) {
+      return const Color(0xFF2196F3);
+    }
+    if (n.contains('creatine')) return const Color(0xFF9C27B0);
+    if (n.contains('fat') || n.contains('burn')) return const Color(0xFFF44336);
+    if (n.contains('vitamin')) return const Color(0xFF4CAF50);
+    if (n.contains('accessory') || n.contains('equipment')) {
+      return const Color(0xFF795548);
+    }
+    if (n.contains('pre-workout')) return const Color(0xFFFF5722);
+    if (n.contains('amino') || n.contains('eaa')) {
+      return const Color(0xFF00BCD4);
+    }
+    return const Color(0xFF3B82F6);
+  }
+
+  IconData _getCategoryIcon(String categoryName) {
+    final n = categoryName.toLowerCase();
+    if (n.contains('mass') || n.contains('gain')) return Icons.monitor_weight;
+    if (n.contains('protein') || n.contains('whey')) {
+      return Icons.fitness_center;
+    }
+    if (n.contains('creatine')) return Icons.bolt;
+    if (n.contains('fat') || n.contains('burn')) {
+      return Icons.local_fire_department;
+    }
+    if (n.contains('vitamin')) return Icons.health_and_safety;
+    if (n.contains('accessory') || n.contains('equipment')) return Icons.sports;
+    if (n.contains('pre-workout')) return Icons.energy_savings_leaf;
+    if (n.contains('amino') || n.contains('eaa')) return Icons.science;
+    return Icons.category;
   }
 }

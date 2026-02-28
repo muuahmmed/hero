@@ -83,7 +83,7 @@ class _ErrorState extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -165,7 +165,7 @@ class _CategoriesGrid extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                  color: const Color(0xFF3B82F6),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -224,18 +224,12 @@ class _CategoriesGrid extends StatelessWidget {
   }
 
   void _navigateToCategoryProducts(BuildContext context, Category category) {
-    // Show a snackbar for now, replace with actual navigation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Opening ${category.name} products...'),
         duration: const Duration(milliseconds: 500),
       ),
     );
-
-    // TODO: Navigate to category products screen
-    // Navigator.push(context, MaterialPageRoute(
-    //   builder: (context) => CategoryProductsScreen(category: category),
-    // ));
   }
 }
 

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hero/presentation/pages/home_screens/cart_screen/cart_cubit/cart_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_routes.dart';
 import 'config/app_theme.dart';
@@ -13,7 +14,8 @@ class MyHttpOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
       ..connectionTimeout = const Duration(seconds: 15)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
   }
 }
 
@@ -33,16 +35,10 @@ Future<void> main() async {
   }
 
   // Initialize SDK
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
 
   // Initialize DioHelper for Admin Auth tasks
-  DioHelper.init(
-    baseUrl: supabaseUrl,
-    serviceRoleKey: serviceRoleKey,
-  );
+  DioHelper.init(baseUrl: supabaseUrl, serviceRoleKey: serviceRoleKey);
 
   runApp(const MyApp());
 }
@@ -52,8 +48,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AuthCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => AuthCubit()),
+        BlocProvider(create: (context) => CartCubit()),
+      ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,

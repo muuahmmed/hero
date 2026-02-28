@@ -7,25 +7,26 @@ class CartCubit extends Cubit<CartState> {
 
   void addToCart(CartItem item) {
     final state = this.state;
-    if (state is CartLoaded) {
-      final updatedItems = List<CartItem>.from(state.items);
+    List<CartItem> currentItems = [];
 
-      final existingIndex = updatedItems.indexWhere(
-        (element) => element.productId == item.productId,
+    if (state is CartLoaded) {
+      currentItems = List<CartItem>.from(state.items);
+      final existingIndex = currentItems.indexWhere(
+            (element) => element.productId == item.productId,
       );
 
       if (existingIndex >= 0) {
-        updatedItems[existingIndex] = updatedItems[existingIndex].copyWith(
-          quantity: updatedItems[existingIndex].quantity + item.quantity,
+        currentItems[existingIndex] = currentItems[existingIndex].copyWith(
+          quantity: currentItems[existingIndex].quantity + item.quantity,
         );
       } else {
-        updatedItems.add(item);
+        currentItems.add(item);
       }
-
-      emit(CartLoaded(items: updatedItems));
     } else {
-      emit(CartLoaded(items: [item]));
+      currentItems = [item];
     }
+
+    emit(CartLoaded(items: currentItems));
   }
 
   void removeFromCart(int productId) {
@@ -41,6 +42,10 @@ class CartCubit extends Cubit<CartState> {
   void updateQuantity(int productId, int quantity) {
     final state = this.state;
     if (state is CartLoaded) {
+      if (quantity <= 0) {
+        removeFromCart(productId);
+        return;
+      }
       final updatedItems = state.items.map((item) {
         if (item.productId == productId) {
           return item.copyWith(quantity: quantity);
@@ -63,5 +68,21 @@ class CartCubit extends Cubit<CartState> {
       });
     }
     return 0;
+  }
+
+  int getItemCount() {
+    final state = this.state;
+    if (state is CartLoaded) {
+      return state.items.fold(0, (count, item) => count + item.quantity);
+    }
+    return 0;
+  }
+
+  bool isInCart(int productId) {
+    final state = this.state;
+    if (state is CartLoaded) {
+      return state.items.any((item) => item.productId == productId);
+    }
+    return false;
   }
 }

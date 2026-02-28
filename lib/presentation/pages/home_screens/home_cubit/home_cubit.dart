@@ -11,7 +11,12 @@ class HomeCubit extends Cubit<HomeState> {
     emit(HomeLoading());
     try {
       final products = await _productService.getProducts();
-      emit(HomeLoaded(products: products));
+      final currentState = this.state;
+      emit(HomeLoaded(
+        products: products,
+        featuredProducts:
+        currentState is HomeLoaded ? currentState.featuredProducts : null,
+      ));
     } catch (e) {
       emit(HomeError(error: e.toString()));
     }
@@ -25,16 +30,15 @@ class HomeCubit extends Cubit<HomeState> {
         emit(state.copyWith(featuredProducts: featuredProducts));
       }
     } catch (e) {
-      // Handle error silently
+      // silently fail — featured is non-critical
     }
   }
 
   Future<void> searchProducts(String query) async {
-    if (query.isEmpty) {
+    if (query.trim().isEmpty) {
       await fetchProducts();
       return;
     }
-
     emit(HomeLoading());
     try {
       final filteredProducts = await _productService.searchProducts(query);
@@ -54,7 +58,17 @@ class HomeCubit extends Cubit<HomeState> {
         return product;
       }).toList();
 
-      emit(state.copyWith(products: updatedProducts));
+      final updatedFeatured = state.featuredProducts?.map((product) {
+        if (product.id == productId) {
+          return product.copyWith(isFavorite: !(product.isFavorite ?? false));
+        }
+        return product;
+      }).toList();
+
+      emit(state.copyWith(
+        products: updatedProducts,
+        featuredProducts: updatedFeatured,
+      ));
     }
   }
 }
