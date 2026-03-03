@@ -1,4 +1,5 @@
-import '../../../../data/models/product_model.dart';
+
+import '../../../../../data/models/product_model.dart' show Product;
 
 sealed class HomeState {}
 

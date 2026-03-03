@@ -9,26 +9,28 @@ class CategoryService {
       final response = await _supabase
           .from('categories')
           .select('*')
-          .eq('active', true)
           .order('order_index', ascending: true);
 
-      return (response as List)
+      final categories = (response as List)
           .map((json) => Category.fromJson(json))
           .toList();
+
+      // Filter in Dart — safe even if active column doesn't exist yet
+      return categories.where((c) => c.active != false).toList();
     } catch (e) {
-      throw Exception('Failed to load categories');
+      print('CategoryService error: $e');
+      throw Exception('Failed to load categories: $e');
     }
   }
 
   Future<List<Category>> getCategoriesWithProductCount() async {
     try {
-      final response = await _supabase
-          .rpc('get_categories_with_product_count');
-
+      final response =
+      await _supabase.rpc('get_categories_with_product_count');
       return (response as List)
           .map((json) => Category.fromJson(json))
           .toList();
-    } catch (e) {
+    } catch (_) {
       return getCategories();
     }
   }

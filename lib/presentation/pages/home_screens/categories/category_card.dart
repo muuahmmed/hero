@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:hero/data/models/category_model.dart';
 
 class CategoryCard extends StatelessWidget {
@@ -16,50 +15,27 @@ class CategoryCard extends StatelessWidget {
 
   Color _getCategoryColor(String categoryName) {
     final lowerName = categoryName.toLowerCase();
-
-    // Color palette for categories
-    if (lowerName.contains('mass') || lowerName.contains('gain')) {
-      return const Color(0xFFFF9800); // Orange
-    } else if (lowerName.contains('protein') || lowerName.contains('whey')) {
-      return const Color(0xFF2196F3); // Blue
-    } else if (lowerName.contains('creatine')) {
-      return const Color(0xFF9C27B0); // Purple
-    } else if (lowerName.contains('fat') || lowerName.contains('burn')) {
-      return const Color(0xFFF44336); // Red
-    } else if (lowerName.contains('vitamin') || lowerName.contains('supplement')) {
-      return const Color(0xFF4CAF50); // Green
-    } else if (lowerName.contains('accessory') || lowerName.contains('equipment')) {
-      return const Color(0xFF795548); // Brown
-    } else if (lowerName.contains('pre-workout')) {
-      return const Color(0xFFFF5722); // Deep Orange
-    } else if (lowerName.contains('amino') || lowerName.contains('eaa')) {
-      return const Color(0xFF00BCD4); // Cyan
-    }
-
-    return const Color(0xFF3B82F6); // Default blue
+    if (lowerName.contains('mass') || lowerName.contains('gain')) return const Color(0xFFFF9800);
+    if (lowerName.contains('protein') || lowerName.contains('whey')) return const Color(0xFF2196F3);
+    if (lowerName.contains('creatine')) return const Color(0xFF9C27B0);
+    if (lowerName.contains('fat') || lowerName.contains('burn')) return const Color(0xFFF44336);
+    if (lowerName.contains('vitamin') || lowerName.contains('supplement') || lowerName.contains('nutritional')) return const Color(0xFF4CAF50);
+    if (lowerName.contains('accessory') || lowerName.contains('accessories') || lowerName.contains('equipment')) return const Color(0xFF795548);
+    if (lowerName.contains('pre-workout')) return const Color(0xFFFF5722);
+    if (lowerName.contains('amino') || lowerName.contains('eaa')) return const Color(0xFF00BCD4);
+    return const Color(0xFF3B82F6);
   }
 
   IconData _getCategoryIcon(String categoryName) {
     final lowerName = categoryName.toLowerCase();
-
-    if (lowerName.contains('mass') || lowerName.contains('gain')) {
-      return Icons.monitor_weight;
-    } else if (lowerName.contains('protein') || lowerName.contains('whey')) {
-      return Icons.fitness_center;
-    } else if (lowerName.contains('creatine')) {
-      return Icons.bolt;
-    } else if (lowerName.contains('fat') || lowerName.contains('burn')) {
-      return Icons.fireplace;
-    } else if (lowerName.contains('vitamin') || lowerName.contains('supplement')) {
-      return Icons.health_and_safety;
-    } else if (lowerName.contains('accessory') || lowerName.contains('equipment')) {
-      return Icons.sports;
-    } else if (lowerName.contains('pre-workout')) {
-      return Icons.energy_savings_leaf;
-    } else if (lowerName.contains('amino') || lowerName.contains('eaa')) {
-      return Icons.science;
-    }
-
+    if (lowerName.contains('mass') || lowerName.contains('gain')) return Icons.monitor_weight;
+    if (lowerName.contains('protein') || lowerName.contains('whey')) return Icons.fitness_center;
+    if (lowerName.contains('creatine')) return Icons.bolt;
+    if (lowerName.contains('fat') || lowerName.contains('burn')) return Icons.local_fire_department;
+    if (lowerName.contains('vitamin') || lowerName.contains('supplement') || lowerName.contains('nutritional')) return Icons.health_and_safety;
+    if (lowerName.contains('accessory') || lowerName.contains('accessories') || lowerName.contains('equipment')) return Icons.sports;
+    if (lowerName.contains('pre-workout')) return Icons.energy_savings_leaf;
+    if (lowerName.contains('amino') || lowerName.contains('eaa')) return Icons.science;
     return Icons.category;
   }
 
@@ -71,7 +47,7 @@ class CategoryCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.all(8),
+        margin: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
@@ -82,91 +58,98 @@ class CategoryCard extends StatelessWidget {
               categoryColor.withOpacity(0.05),
             ],
           ),
-          border: Border.all(
-            color: categoryColor.withOpacity(0.2),
-            width: 1,
-          ),
+          border: Border.all(color: categoryColor.withOpacity(0.2)),
         ),
         child: Stack(
           children: [
-            // Background pattern
+            // Background watermark
             Positioned(
-              right: 0,
-              bottom: 0,
+              right: -4,
+              bottom: -4,
               child: Opacity(
                 opacity: 0.05,
-                child: Icon(
-                  icon,
-                  size: 80,
-                  color: categoryColor,
-                ),
+                child: Icon(icon, size: 80, color: categoryColor),
               ),
             ),
 
+            // Corner arrow
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: categoryColor.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+                child: Icon(Icons.arrow_forward_ios, size: 14, color: categoryColor),
+              ),
+            ),
+
+            // Main content — NO Spacer, uses mainAxisSize.min
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, // ← THE FIX
                 children: [
-                  // Icon Container
+                  // Icon
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
                       color: categoryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: categoryColor.withOpacity(0.3),
                         width: 2,
                       ),
                     ),
                     child: Center(
-                      child: Icon(
-                        icon,
-                        size: 28,
-                        color: categoryColor,
-                      ),
+                      child: Icon(icon, size: 26, color: categoryColor),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-                  // Category Name
+                  // Name
                   Text(
                     category.name,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 14,
                       color: Colors.grey[800],
+                      height: 1.2,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                  // Description (if available)
+                  // Description
                   if (category.description != null)
                     Text(
                       category.description!,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        height: 1.4,
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                        height: 1.3,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
 
-                  const Spacer(),
-
-                  // Product Count Badge
-                  if (productCount != null)
+                  // Product count badge
+                  if (productCount != null && productCount! > 0) ...[
+                    const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: categoryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -174,11 +157,8 @@ class CategoryCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 12,
-                            color: categoryColor,
-                          ),
+                          Icon(Icons.inventory_2_outlined,
+                              size: 11, color: categoryColor),
                           const SizedBox(width: 4),
                           Text(
                             '$productCount products',
@@ -191,31 +171,8 @@ class CategoryCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                  ],
                 ],
-              ),
-            ),
-
-            // Corner decoration
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: categoryColor,
-                  ),
-                ),
               ),
             ),
           ],

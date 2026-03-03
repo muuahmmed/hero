@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../data/models/product_model.dart';
-import '../../../../data/services/category_service.dart';
-import '../Product_Card/Product_Card_widget.dart';
-import '../Product_Card/Product_detail_screen.dart';
-import '../cart_screen/cart_cubit/cart_cubit.dart';
-import '../cart_screen/cart_cubit/cart_states.dart';
-import '../categories/categories_cubit/categories_cubit.dart';
-import '../categories/categories_cubit/categories_states.dart';
-import '../categories/categories_screen.dart';
-import '../home_cubit/home_cubit.dart';
-import '../home_cubit/home_states.dart';
-import '../section_header/section_header_screen.dart';
+import 'package:hero/data/models/product_model.dart';
+import 'package:hero/presentation/pages/home_screens/Product_Card/Product_Card_widget.dart';
+import 'package:hero/presentation/pages/home_screens/Product_Card/Product_detail_screen.dart';
+import 'package:hero/presentation/pages/home_screens/cart_screen/cart_cubit/cart_cubit.dart';
+import 'package:hero/presentation/pages/home_screens/cart_screen/cart_cubit/cart_states.dart';
+import 'package:hero/presentation/pages/home_screens/categories/categories_cubit/categories_cubit.dart';
+import 'package:hero/presentation/pages/home_screens/categories/categories_cubit/categories_states.dart';
+import 'package:hero/presentation/pages/home_screens/section_header/section_header_screen.dart';
+
+import 'home_cubit/home_cubit.dart';
+import 'home_cubit/home_states.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,7 +22,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late final CategoriesCubit _categoriesCubit;
 
   int? _selectedCategoryId;
   String? _selectedCategoryName;
@@ -32,11 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _categoriesCubit = CategoriesCubit(CategoryService());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeCubit>().fetchProducts();
       context.read<HomeCubit>().fetchFeaturedProducts();
-      _categoriesCubit.fetchCategories();
+      context.read<CategoriesCubit>().fetchCategories();
     });
   }
 
@@ -44,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
-    _categoriesCubit.close();
     super.dispose();
   }
 
@@ -53,15 +48,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedCategoryId = null;
       _selectedCategoryName = null;
     });
-  }
-
-  // Safe helper — returns null if CartCubit is not in the tree
-  CartCubit? get _cartCubit {
-    try {
-      return context.read<CartCubit>();
-    } catch (_) {
-      return null;
-    }
   }
 
   @override
@@ -83,9 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // HEADER
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── HEADER ────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
     return Container(
@@ -105,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Row(
             children: [
-              // Brand icon
               Container(
                 width: 44,
                 height: 44,
@@ -124,20 +107,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-
-              // Tagline
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome to Hero Fitness',
+                      'Hero Fitness',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      'Premium supplements for your journey',
+                      'Premium supplements',
                       style: Theme.of(
                         context,
                       ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
@@ -145,15 +126,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-
-              // Cart button — safe: works even without CartCubit in tree
-              _buildCartButton(context),
+              BlocBuilder<CartCubit, CartState>(
+                builder: (context, cartState) {
+                  final itemCount = cartState is CartLoaded
+                      ? cartState.items.fold<int>(
+                          0,
+                          (sum, item) => sum + item.quantity,
+                        )
+                      : 0;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.shopping_cart_outlined,
+                          color: Colors.black87,
+                          size: 22,
+                        ),
+                      ),
+                      if (itemCount > 0)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF3B82F6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                itemCount > 9 ? '9+' : '$itemCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
-
           const SizedBox(height: 14),
-
-          // Search bar
           Container(
             decoration: BoxDecoration(
               color: Colors.grey[50],
@@ -164,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _searchController,
               onChanged: (value) {
                 setState(() {});
+                if (_selectedCategoryId != null) _clearCategoryFilter();
                 context.read<HomeCubit>().searchProducts(value);
               },
               decoration: InputDecoration(
@@ -194,88 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Cart button that degrades gracefully when CartCubit is absent.
-  Widget _buildCartButton(BuildContext context) {
-    // If CartCubit is not provided above, render a simple icon without a badge
-    final hasCubit =
-        context.findAncestorWidgetOfExactType<BlocProvider<CartCubit>>() !=
-        null;
-
-    if (!hasCubit) {
-      return GestureDetector(
-        onTap: () => context.go('/cart'),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.shopping_cart_outlined,
-            color: Colors.black87,
-            size: 22,
-          ),
-        ),
-      );
-    }
-
-    return BlocBuilder<CartCubit, CartState>(
-      builder: (context, cartState) {
-        final itemCount = cartState is CartLoaded
-            ? cartState.items.fold<int>(0, (sum, item) => sum + item.quantity)
-            : 0;
-        return GestureDetector(
-          onTap: () => context.go('/cart'),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.shopping_cart_outlined,
-                  color: Colors.black87,
-                  size: 22,
-                ),
-              ),
-              if (itemCount > 0)
-                Positioned(
-                  top: -4,
-                  right: -4,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF3B82F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        itemCount > 9 ? '9+' : '$itemCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CONTENT ROUTER
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── CONTENT ROUTER ────────────────────────────────────────────────────────
 
   Widget _buildContent(BuildContext context, HomeState state) {
     if (state is HomeLoading) return _buildLoading();
@@ -283,10 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (state is HomeLoaded) return _buildLoadedContent(context, state);
     return _buildEmpty();
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // LOADING
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildLoading() {
     return Center(
@@ -305,10 +247,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // ERROR
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildError(BuildContext context, HomeError state) {
     return Center(
@@ -361,10 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // LOADED CONTENT
-  // ─────────────────────────────────────────────────────────────────────────
-
   Widget _buildLoadedContent(BuildContext context, HomeLoaded state) {
     if (state.products.isEmpty) return _buildEmpty();
 
@@ -382,22 +316,18 @@ class _HomeScreenState extends State<HomeScreen> {
         final homeCubit = context.read<HomeCubit>();
         await homeCubit.fetchProducts();
         await homeCubit.fetchFeaturedProducts();
-        await _categoriesCubit.fetchCategories();
+        context.read<CategoriesCubit>().fetchCategories();
       },
       color: const Color(0xFF3B82F6),
       child: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // ── Featured Products ────────────────────────────────────────
+          // Featured Products
           if (state.featuredProducts?.isNotEmpty == true &&
               _selectedCategoryId == null &&
               !isSearching) ...[
-            SectionHeader(
-              title: '⭐ Featured Products',
-              onSeeAll: () =>
-                  _showAllFeatured(context, state.featuredProducts!),
-            ),
+            SectionHeader(title: '⭐ Featured', onSeeAll: null),
             SizedBox(
               height: 240,
               child: ListView.builder(
@@ -425,24 +355,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
           ],
 
-          // ── Categories Row ───────────────────────────────────────────
+          // Categories Row
           if (!isSearching) _buildCategoriesSection(context),
 
-          // ── Active Filter Chip ───────────────────────────────────────
+          // Active Filter Chip
           if (_selectedCategoryId != null && _selectedCategoryName != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
                   const Icon(
                     Icons.filter_list,
-                    size: 18,
+                    size: 16,
                     color: Color(0xFF3B82F6),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Chip(
                     label: Text(_selectedCategoryName!),
                     backgroundColor: const Color(0xFF3B82F6).withOpacity(0.1),
@@ -452,7 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     deleteIcon: const Icon(
                       Icons.close,
-                      size: 16,
+                      size: 14,
                       color: Color(0xFF3B82F6),
                     ),
                     onDeleted: _clearCategoryFilter,
@@ -462,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-          // ── Products Grid Header ─────────────────────────────────────
+          // Products Header
           SectionHeader(
             title: _selectedCategoryName != null
                 ? '🛍️ $_selectedCategoryName'
@@ -470,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSeeAll: null,
           ),
 
-          // ── Products Grid or Empty ───────────────────────────────────
+          // Products Grid
           if (displayedProducts.isEmpty)
             _buildCategoryEmpty()
           else
@@ -480,42 +410,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CATEGORIES SECTION
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── CATEGORIES ────────────────────────────────────────────────────────────
 
   Widget _buildCategoriesSection(BuildContext context) {
     return BlocBuilder<CategoriesCubit, CategoriesState>(
-      bloc: _categoriesCubit,
       builder: (context, state) {
         return Column(
           children: [
             SectionHeader(
               title: '📂 Categories',
               onSeeAll: () {
-                // Pass CartCubit down only if it exists
-                final cart = _cartCubit;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) {
-                      final providers = <BlocProvider>[
-                        BlocProvider.value(value: _categoriesCubit),
-                      ];
-                      if (cart != null) {
-                        providers.add(BlocProvider.value(value: cart));
-                      }
-                      return MultiBlocProvider(
-                        providers: providers,
-                        child: const CategoriesScreen(),
-                      );
-                    },
-                  ),
-                );
+                // Navigate to the categories tab (index 1)
+                // handled by IndexedStack in MainHomeScreen
               },
             ),
             _buildCategoriesList(context, state),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
           ],
         );
       },
@@ -537,19 +447,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (state is CategoriesError) {
       return SizedBox(
-        height: 80,
+        height: 60,
         child: Center(
           child: TextButton.icon(
-            onPressed: () => _categoriesCubit.fetchCategories(),
+            onPressed: () => context.read<CategoriesCubit>().fetchCategories(),
             icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Retry loading categories'),
+            label: const Text('Retry'),
           ),
         ),
       );
     }
 
     if (state is CategoriesLoaded) {
-      final categories = state.categories.take(8).toList();
+      final categories = state.categories.take(10).toList();
       return SizedBox(
         height: 110,
         child: ListView.builder(
@@ -572,6 +482,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     _selectedCategoryName = category.name;
                   }
                 });
+                // Scroll to top
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -647,9 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return const SizedBox.shrink();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PRODUCTS GRID
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── PRODUCTS GRID ─────────────────────────────────────────────────────────
 
   Widget _buildProductsGrid(BuildContext context, List<Product> products) {
     return LayoutBuilder(
@@ -680,9 +594,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // EMPTY STATES
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── EMPTY STATES ──────────────────────────────────────────────────────────
 
   Widget _buildEmpty() {
     return Center(
@@ -698,11 +610,6 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try searching for something else',
-            style: TextStyle(color: Colors.grey[400]),
           ),
         ],
       ),
@@ -730,72 +637,48 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // NAVIGATION HELPERS
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── NAVIGATION ────────────────────────────────────────────────────────────
 
   void _navigateToProduct(BuildContext context, Product product) {
-    final cart = _cartCubit;
+    final cartCubit = context.read<CartCubit>();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) {
-          if (cart != null) {
-            return BlocProvider.value(
-              value: cart,
-              child: ProductDetailScreen(product: product),
-            );
-          }
-          return ProductDetailScreen(product: product);
-        },
+        builder: (_) => BlocProvider.value(
+          value: cartCubit,
+          child: ProductDetailScreen(product: product),
+        ),
       ),
     );
   }
 
-  void _showAllFeatured(BuildContext context, List<Product> products) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Showing all featured products'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CATEGORY COLOR & ICON HELPERS
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── HELPERS ───────────────────────────────────────────────────────────────
 
   Color _getCategoryColor(String categoryName) {
     final n = categoryName.toLowerCase();
-    if (n.contains('mass') || n.contains('gain')) {
+    if (n.contains('mass') || n.contains('gain'))
       return const Color(0xFFFF9800);
-    }
-    if (n.contains('protein') || n.contains('whey')) {
+    if (n.contains('protein') || n.contains('whey'))
       return const Color(0xFF2196F3);
-    }
     if (n.contains('creatine')) return const Color(0xFF9C27B0);
     if (n.contains('fat') || n.contains('burn')) return const Color(0xFFF44336);
     if (n.contains('vitamin')) return const Color(0xFF4CAF50);
-    if (n.contains('accessory') || n.contains('equipment')) {
+    if (n.contains('accessory') || n.contains('equipment'))
       return const Color(0xFF795548);
-    }
     if (n.contains('pre-workout')) return const Color(0xFFFF5722);
-    if (n.contains('amino') || n.contains('eaa')) {
+    if (n.contains('amino') || n.contains('eaa'))
       return const Color(0xFF00BCD4);
-    }
     return const Color(0xFF3B82F6);
   }
 
   IconData _getCategoryIcon(String categoryName) {
     final n = categoryName.toLowerCase();
     if (n.contains('mass') || n.contains('gain')) return Icons.monitor_weight;
-    if (n.contains('protein') || n.contains('whey')) {
+    if (n.contains('protein') || n.contains('whey'))
       return Icons.fitness_center;
-    }
     if (n.contains('creatine')) return Icons.bolt;
-    if (n.contains('fat') || n.contains('burn')) {
+    if (n.contains('fat') || n.contains('burn'))
       return Icons.local_fire_department;
-    }
     if (n.contains('vitamin')) return Icons.health_and_safety;
     if (n.contains('accessory') || n.contains('equipment')) return Icons.sports;
     if (n.contains('pre-workout')) return Icons.energy_savings_leaf;
