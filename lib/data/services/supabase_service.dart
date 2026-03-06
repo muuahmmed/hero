@@ -35,7 +35,11 @@ class SupabaseService {
     }
   }
 
-  Future<models.AppUser?> signUp(String email, String password, String fullName) async {
+  Future<models.AppUser?> signUp(
+    String email,
+    String password,
+    String fullName,
+  ) async {
     try {
       print('📝signing up $email');
 
@@ -119,7 +123,6 @@ class SupabaseService {
 
       print('No user is currently authenticated');
       return null;
-
     } catch (e) {
       print('Error getting current user: $e');
       return null;

@@ -686,60 +686,69 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     if (mounted) {
       context.read<CartCubit>().clearCart();
       Navigator.pop(context); // close sheet
-      _showSuccessDialog(context);
+      _showSuccessMessage(context);
     }
   }
+  void _showSuccessMessage(BuildContext context) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
 
-  void _showSuccessDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: Colors.green, size: 50),
-            ),
-            const SizedBox(height: 16),
-            const Text('Order Placed!',
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              'Your order of ${widget.total.toStringAsFixed(0)} EGP has been placed successfully. We\'ll contact you shortly.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], height: 1.5),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+    entry = OverlayEntry(
+      builder: (_) => Positioned(
+        top: MediaQuery.of(context).size.height * 0.35,
+        left: 32,
+        right: 32,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
-                child: const Text('Done',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
+              ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle, color: Colors.green, size: 50),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Order Placed!',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your order of ${widget.total.toStringAsFixed(0)} EGP has been placed successfully. We\'ll contact you shortly.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], height: 1.5),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+
+    overlay.insert(entry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      entry.remove();
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    });
   }
 }
 

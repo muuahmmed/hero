@@ -1,6 +1,6 @@
-// إعادة تسمية UserModel إلى AppUser لتجنب التعارض
 class AppUser {
-  final String id;
+  final String id;       // auth UUID
+  final int? dbId;       // public.users integer id
   final String email;
   final String fullName;
   final String? phone;
@@ -8,6 +8,7 @@ class AppUser {
 
   AppUser({
     required this.id,
+    this.dbId,
     required this.email,
     required this.fullName,
     this.phone,
@@ -16,9 +17,9 @@ class AppUser {
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
-      id: json['id'],
-      email: json['email'],
-      fullName: json['full_name'] ?? '',
+      id: json['id'] ?? '',
+      email: json['email'] ?? '',
+      fullName: json['full_name'] ?? json['name'] ?? '',
       phone: json['phone'],
       avatarUrl: json['avatar_url'],
     );
@@ -32,5 +33,23 @@ class AppUser {
       'phone': phone,
       'avatar_url': avatarUrl,
     };
+  }
+
+  AppUser copyWith({
+    String? id,
+    int? dbId,
+    String? email,
+    String? fullName,
+    String? phone,
+    String? avatarUrl,
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      dbId: dbId ?? this.dbId,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+    );
   }
 }

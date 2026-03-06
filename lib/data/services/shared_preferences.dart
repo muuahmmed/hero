@@ -23,10 +23,7 @@ class SessionManager {
 
       if (sessionToken != null && userEmail != null) {
         print('✅ Found saved session for: $userEmail');
-        return {
-          'token': sessionToken,
-          'email': userEmail,
-        };
+        return {'token': sessionToken, 'email': userEmail};
       }
       print('⚠️ No saved session found');
       return null;
