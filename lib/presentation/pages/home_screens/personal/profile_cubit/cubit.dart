@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:hero/presentation/pages/home_screens/personal/profile_cubit/states.dart';
 import '../../../../../data/models/profile_models.dart';
@@ -12,17 +13,21 @@ class ProfileCubit extends Cubit<ProfileState> {
     emit(ProfileLoading());
     try {
       final results = await Future.wait([
+        _service.getProfile(),
         _service.getWishlist(),
         _service.getOrders(),
         _service.getMyReviews(),
         _service.getProfileStats(),
       ]);
-      emit(ProfileLoaded(
-        wishlist: results[0] as List<WishlistItem>,
-        orders: results[1] as List<AppOrder>,
-        reviews: results[2] as List<Review>,
-        stats: results[3] as Map<String, int>,
-      ));
+      emit(
+        ProfileLoaded(
+          profile: results[0] as UserProfile?,
+          wishlist: results[1] as List<WishlistItem>,
+          orders: results[2] as List<AppOrder>,
+          reviews: results[3] as List<Review>,
+          stats: results[4] as Map<String, int>,
+        ),
+      );
     } catch (e) {
       emit(ProfileError(e.toString()));
     }
@@ -34,9 +39,25 @@ class ProfileCubit extends Cubit<ProfileState> {
     emit(s.copyWith(isUpdating: true));
     try {
       await _service.updateProfile(name: name, phone: phone);
-      emit(s.copyWith(isUpdating: false));
+      // Refresh profile from DB so UI shows updated values immediately
+      final updated = await _service.getProfile();
+      emit(s.copyWith(isUpdating: false, profile: updated));
     } catch (e) {
       emit(s.copyWith(isUpdating: false));
+      rethrow;
+    }
+  }
+
+  Future<void> uploadAvatar(File imageFile) async {
+    final s = state;
+    if (s is! ProfileLoaded) return;
+    emit(s.copyWith(isUploadingAvatar: true));
+    try {
+      final url = await _service.uploadAvatar(imageFile);
+      final updated = s.profile?.copyWith(avatarUrl: url);
+      emit(s.copyWith(isUploadingAvatar: false, profile: updated));
+    } catch (e) {
+      emit(s.copyWith(isUploadingAvatar: false));
       rethrow;
     }
   }

@@ -1,3 +1,51 @@
+// ── UserProfile — live data from public.users table ──────────────────────────
+class UserProfile {
+  final int id;
+  final String name;
+  final String email;
+  final String? phone;
+  final String? avatarUrl;
+  final DateTime? createdAt;
+
+  UserProfile({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.phone,
+    this.avatarUrl,
+    this.createdAt,
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      id: json['id'] as int,
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
+
+  UserProfile copyWith({
+    String? name,
+    String? phone,
+    String? avatarUrl,
+  }) {
+    return UserProfile(
+      id: id,
+      name: name ?? this.name,
+      email: email,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      createdAt: createdAt,
+    );
+  }
+}
+
+// ── WishlistItem ──────────────────────────────────────────────────────────────
 class WishlistItem {
   final int id;
   final int userId;
@@ -27,9 +75,12 @@ class WishlistItem {
       id: json['id'] as int,
       userId: json['user_id'] as int,
       productId: json['product_id'] as int,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
       productName: product?['name'] as String?,
-      productPrice: product != null ? double.tryParse(product['price'].toString()) : null,
+      productPrice:
+      product != null ? double.tryParse(product['price'].toString()) : null,
       productImage: product?['image_url'] as String?,
       productStock: product?['stock'] as int?,
       productCompany: product?['company'] as String?,
@@ -37,6 +88,7 @@ class WishlistItem {
   }
 }
 
+// ── Review ────────────────────────────────────────────────────────────────────
 class Review {
   final int id;
   final int userId;
@@ -67,13 +119,16 @@ class Review {
       productId: json['product_id'] as int,
       rating: json['rating'] as int,
       comment: json['comment'] as String?,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
       userName: user?['name'] as String?,
       productName: product?['name'] as String?,
     );
   }
 }
 
+// ── AppOrder ──────────────────────────────────────────────────────────────────
 class AppOrder {
   final int id;
   final int userId;
@@ -99,14 +154,22 @@ class AppOrder {
       id: json['id'] as int,
       userId: json['user_id'] as int,
       status: json['status'] as String?,
-      total: json['total'] != null ? double.tryParse(json['total'].toString()) : null,
+      total: json['total'] != null
+          ? double.tryParse(json['total'].toString())
+          : null,
       shippingAddress: json['shipping_address'] as String?,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
-      items: itemsJson?.map((i) => AppOrderItem.fromJson(i as Map<String, dynamic>)).toList() ?? [],
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+      items: itemsJson
+          ?.map((i) => AppOrderItem.fromJson(i as Map<String, dynamic>))
+          .toList() ??
+          [],
     );
   }
 }
 
+// ── AppOrderItem ──────────────────────────────────────────────────────────────
 class AppOrderItem {
   final int id;
   final int orderId;

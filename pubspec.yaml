@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   google_sign_in:
+  image_picker:
   fluttertoast:
   flutter_secure_storage: ^10.0.0
   supabase_flutter: ^2.3.2

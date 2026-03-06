@@ -1,10 +1,11 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile_models.dart';
 
 class ProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // ── Get current user's integer DB id from public.users ──────────────────
+  // ── Get current user's integer DB id ─────────────────────────────────────
   Future<int?> _getUserDbId() async {
     final authUid = _supabase.auth.currentUser?.id;
     if (authUid == null) return null;
@@ -16,7 +17,20 @@ class ProfileService {
     return res['id'] as int?;
   }
 
-  // ── Profile update ───────────────────────────────────────────────────────
+  // ── Fetch full live profile from DB ───────────────────────────────────────
+  Future<UserProfile?> getProfile() async {
+    final authUid = _supabase.auth.currentUser?.id;
+    if (authUid == null) return null;
+    final res = await _supabase
+        .from('users')
+        .select('id, name, email, phone, avatar_url, created_at')
+        .eq('auth_user_id', authUid)
+        .maybeSingle();
+    if (res == null) return null;
+    return UserProfile.fromJson(res);
+  }
+
+  // ── Update profile name, phone ────────────────────────────────────────────
   Future<void> updateProfile({String? name, String? phone}) async {
     final authUid = _supabase.auth.currentUser?.id;
     if (authUid == null) throw Exception('Not authenticated');
@@ -26,14 +40,49 @@ class ProfileService {
     if (name != null && name.isNotEmpty) updates['name'] = name;
     if (phone != null) updates['phone'] = phone;
     await _supabase.from('users').update(updates).eq('auth_user_id', authUid);
+    // Also update Supabase Auth metadata so fullName stays in sync
+    if (name != null && name.isNotEmpty) {
+      await _supabase.auth.updateUser(
+        UserAttributes(data: {'full_name': name}),
+      );
+    }
   }
 
-  // ── Change password via Supabase Auth ────────────────────────────────────
+  // ── Upload avatar to Supabase Storage ─────────────────────────────────────
+  Future<String> uploadAvatar(File imageFile) async {
+    final authUid = _supabase.auth.currentUser?.id;
+    if (authUid == null) throw Exception('Not authenticated');
+
+    final ext = imageFile.path.split('.').last;
+    final fileName = 'avatars/$authUid.$ext';
+
+    await _supabase.storage
+        .from('user-avatars')
+        .upload(
+          fileName,
+          imageFile,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    final publicUrl = _supabase.storage
+        .from('user-avatars')
+        .getPublicUrl(fileName);
+
+    // Save avatar_url back to users table
+    await _supabase
+        .from('users')
+        .update({'avatar_url': publicUrl})
+        .eq('auth_user_id', authUid);
+
+    return publicUrl;
+  }
+
+  // ── Change password via Supabase Auth ─────────────────────────────────────
   Future<void> changePassword(String newPassword) async {
     await _supabase.auth.updateUser(UserAttributes(password: newPassword));
   }
 
-  // ── Wishlist ─────────────────────────────────────────────────────────────
+  // ── Wishlist ──────────────────────────────────────────────────────────────
   Future<List<WishlistItem>> getWishlist() async {
     final userId = await _getUserDbId();
     if (userId == null) return [];
@@ -85,13 +134,17 @@ class ProfileService {
     }
   }
 
-  // ── Orders ───────────────────────────────────────────────────────────────
+  // ── Orders ────────────────────────────────────────────────────────────────
   Future<List<AppOrder>> getOrders() async {
     final userId = await _getUserDbId();
     if (userId == null) return [];
     final res = await _supabase
         .from('orders')
-        .select('*, order_items(*, products(name, image_url))')
+        .select(
+          'id, user_id, status, total, shipping_address, notes, '
+          'created_at, order_items(id, order_id, product_id, quantity, price, '
+          'products(name, image_url))',
+        )
         .eq('user_id', userId)
         .order('created_at', ascending: false);
     return (res as List)
@@ -99,7 +152,7 @@ class ProfileService {
         .toList();
   }
 
-  // ── Reviews ──────────────────────────────────────────────────────────────
+  // ── Reviews ───────────────────────────────────────────────────────────────
   Future<List<Review>> getMyReviews() async {
     final userId = await _getUserDbId();
     if (userId == null) return [];
@@ -132,7 +185,7 @@ class ProfileService {
     await _supabase.from('reviews').delete().eq('id', reviewId);
   }
 
-  // ── Stats (orders + wishlist + reviews count) ────────────────────────────
+  // ── Stats ─────────────────────────────────────────────────────────────────
   Future<Map<String, int>> getProfileStats() async {
     final userId = await _getUserDbId();
     if (userId == null) return {'orders': 0, 'wishlist': 0, 'reviews': 0};
