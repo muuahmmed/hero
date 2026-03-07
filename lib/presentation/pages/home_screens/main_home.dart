@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hero/core/utils/app_tab_notifier.dart';
 import 'package:hero/data/services/category_service.dart';
 import 'package:hero/data/services/product_service.dart';
 import 'package:hero/presentation/pages/home_screens/cart_screen/cart_cubit/cart_cubit.dart';
@@ -30,10 +31,19 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
     super.initState();
     _homeCubit = HomeCubit(ProductService());
     _categoriesCubit = CategoriesCubit(CategoryService());
+    appTabIndex.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    final idx = appTabIndex.value;
+    if (mounted && _currentIndex != idx) {
+      setState(() => _currentIndex = idx);
+    }
   }
 
   @override
   void dispose() {
+    appTabIndex.removeListener(_onTabChanged);
     _homeCubit.close();
     _categoriesCubit.close();
     super.dispose();
@@ -103,7 +113,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
                       final isSelected = _currentIndex == index;
                       final showBadge = index == 2 && cartCount > 0;
                       return GestureDetector(
-                        onTap: () => setState(() => _currentIndex = index),
+                        onTap: () {
+                          setState(() => _currentIndex = index);
+                          appTabIndex.value = index;
+                        },
                         behavior: HitTestBehavior.opaque,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),

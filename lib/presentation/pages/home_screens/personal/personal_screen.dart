@@ -11,8 +11,9 @@ import 'package:hero/presentation/pages/auth/cubit/auth_states.dart';
 import 'package:hero/presentation/pages/home_screens/personal/profile_cubit/cubit.dart';
 import 'package:hero/presentation/pages/home_screens/personal/profile_cubit/states.dart';
 import 'package:image_picker/image_picker.dart';
-
+import '../wichlist/wishlist_screen.dart';
 import '../order_history/order_history_screen.dart';
+import 'package:hero/core/utils/app_tab_notifier.dart';
 
 class PersonalScreen extends StatelessWidget {
   const PersonalScreen({super.key});
@@ -385,7 +386,10 @@ class _PersonalBodyState extends State<_PersonalBody> {
           label: 'Orders',
           icon: Icons.shopping_bag_outlined,
           color: const Color(0xFF3B82F6),
-          onTap: () => navigateTo(context, const OrderHistoryScreen()),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+          ),
         ),
         const SizedBox(width: 12),
         _StatCard(
@@ -393,7 +397,7 @@ class _PersonalBodyState extends State<_PersonalBody> {
           label: 'Wishlist',
           icon: Icons.favorite_border,
           color: Colors.red,
-          onTap: () => _showWishlist(context, profileState),
+          onTap: () => _openWishlist(context),
         ),
         const SizedBox(width: 12),
         _StatCard(
@@ -468,7 +472,10 @@ class _PersonalBodyState extends State<_PersonalBody> {
               ? '$orderCount order${orderCount != 1 ? 's' : ''} placed'
               : 'No orders yet',
           color: Colors.teal,
-          onTap: () => navigateTo(context, const OrderHistoryScreen()),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+          ),
         ),
         const Divider(height: 1, indent: 68),
         _ActionTile(
@@ -478,7 +485,7 @@ class _PersonalBodyState extends State<_PersonalBody> {
               ? '$wishlistCount saved item${wishlistCount != 1 ? 's' : ''}'
               : 'No saved items',
           color: Colors.red,
-          onTap: () => _showWishlist(context, profileState),
+          onTap: () => _openWishlist(context),
         ),
         const Divider(height: 1, indent: 68),
         _ActionTile(
@@ -651,40 +658,13 @@ class _PersonalBodyState extends State<_PersonalBody> {
   // Bottom sheets
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _showWishlist(BuildContext context, ProfileState state) {
+  void _openWishlist(BuildContext context) {
     final cubit = context.read<ProfileCubit>();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: BlocBuilder<ProfileCubit, ProfileState>(
-          builder: (ctx, ps) {
-            final list = ps is ProfileLoaded ? ps.wishlist : <WishlistItem>[];
-            return _Sheet(
-              title: 'My Wishlist',
-              child: list.isEmpty
-                  ? const _Empty(
-                      icon: Icons.favorite_border,
-                      label: 'Your wishlist is empty',
-                    )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: list.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, indent: 16),
-                      itemBuilder: (_, i) => _WishlistTile(
-                        item: list[i],
-                        onRemove: () => ctx.read<ProfileCubit>().toggleWishlist(
-                          list[i].productId,
-                        ),
-                      ),
-                    ),
-            );
-          },
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            BlocProvider.value(value: cubit, child: const WishlistScreen()),
       ),
     );
   }
@@ -985,50 +965,6 @@ class _PersonalBodyState extends State<_PersonalBody> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Wishlist & Review tiles
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _WishlistTile extends StatelessWidget {
-  final WishlistItem item;
-  final VoidCallback onRemove;
-  const _WishlistTile({required this.item, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 52,
-          height: 52,
-          color: Colors.grey[100],
-          child: item.productImage != null
-              ? CachedNetworkImage(
-                  imageUrl: item.productImage!,
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.fitness_center, color: Colors.grey),
-                )
-              : const Icon(Icons.fitness_center, color: Colors.grey),
-        ),
-      ),
-      title: Text(
-        item.productName ?? 'Product',
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        '${item.productPrice?.toStringAsFixed(0) ?? '0'} EGP',
-        style: const TextStyle(
-          color: Color(0xFF3B82F6),
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      trailing: IconButton(
-        icon: const Icon(Icons.favorite, color: Colors.red, size: 22),
-        onPressed: onRemove,
-      ),
-    );
-  }
-}
 
 class _ReviewTile extends StatelessWidget {
   final Review review;

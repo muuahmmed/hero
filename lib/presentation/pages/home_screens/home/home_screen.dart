@@ -347,9 +347,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       product: product,
                       isFeatured: true,
                       onTap: () => _navigateToProduct(context, product),
-                      onFavoriteToggle: () => context
-                          .read<HomeCubit>()
-                          .toggleProductFavorite(product.id),
+                      onFavoriteToggle: () async {
+                        try {
+                          await context.read<HomeCubit>().toggleProductFavorite(
+                            product.id,
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Wishlist error: $e'),
+                                backgroundColor: Colors.red,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
                     ),
                   );
                 },
@@ -585,8 +599,23 @@ class _HomeScreenState extends State<HomeScreen> {
             return ProductCard(
               product: product,
               onTap: () => _navigateToProduct(context, product),
-              onFavoriteToggle: () =>
-                  context.read<HomeCubit>().toggleProductFavorite(product.id),
+              onFavoriteToggle: () async {
+                try {
+                  await context.read<HomeCubit>().toggleProductFavorite(
+                    product.id,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Wishlist error: $e'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
             );
           },
         );

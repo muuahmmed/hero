@@ -127,10 +127,44 @@ class ProfileService {
   }
 
   Future<void> toggleWishlist(int productId) async {
-    if (await isInWishlist(productId)) {
-      await removeFromWishlist(productId);
+    final userId = await _getUserDbId();
+    if (userId == null) throw Exception('Not authenticated');
+
+    // Check current status
+    final existing = await _supabase
+        .from('wishlist')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', productId);
+
+    if ((existing as List).isNotEmpty) {
+      // Remove
+      await _supabase
+          .from('wishlist')
+          .delete()
+          .eq('user_id', userId)
+          .eq('product_id', productId);
     } else {
-      await addToWishlist(productId);
+      // Add
+      await _supabase.from('wishlist').insert({
+        'user_id': userId,
+        'product_id': productId,
+      });
+    }
+  }
+
+  // Returns Set of product IDs that are in the user's wishlist
+  Future<Set<int>> getWishlistIds() async {
+    try {
+      final userId = await _getUserDbId();
+      if (userId == null) return {};
+      final res = await _supabase
+          .from('wishlist')
+          .select('product_id')
+          .eq('user_id', userId);
+      return (res as List).map((j) => j['product_id'] as int).toSet();
+    } catch (_) {
+      return {};
     }
   }
 
