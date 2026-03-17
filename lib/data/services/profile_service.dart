@@ -6,7 +6,7 @@ class ProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // ── Get current user's integer DB id ─────────────────────────────────────
-  Future<int?> _getUserDbId() async {
+  Future<int?> getUserDbId() async {
     final authUid = _supabase.auth.currentUser?.id;
     if (authUid == null) return null;
     final res = await _supabase
@@ -84,7 +84,7 @@ class ProfileService {
 
   // ── Wishlist ──────────────────────────────────────────────────────────────
   Future<List<WishlistItem>> getWishlist() async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return [];
     final res = await _supabase
         .from('wishlist')
@@ -97,7 +97,7 @@ class ProfileService {
   }
 
   Future<bool> isInWishlist(int productId) async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return false;
     final res = await _supabase
         .from('wishlist')
@@ -108,7 +108,7 @@ class ProfileService {
   }
 
   Future<void> addToWishlist(int productId) async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) throw Exception('Not authenticated');
     await _supabase.from('wishlist').insert({
       'user_id': userId,
@@ -117,7 +117,7 @@ class ProfileService {
   }
 
   Future<void> removeFromWishlist(int productId) async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return;
     await _supabase
         .from('wishlist')
@@ -127,7 +127,7 @@ class ProfileService {
   }
 
   Future<void> toggleWishlist(int productId) async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) throw Exception('Not authenticated');
 
     // Check current status
@@ -156,7 +156,7 @@ class ProfileService {
   // Returns Set of product IDs that are in the user's wishlist
   Future<Set<int>> getWishlistIds() async {
     try {
-      final userId = await _getUserDbId();
+      final userId = await getUserDbId();
       if (userId == null) return {};
       final res = await _supabase
           .from('wishlist')
@@ -170,7 +170,7 @@ class ProfileService {
 
   // ── Orders ────────────────────────────────────────────────────────────────
   Future<List<AppOrder>> getOrders() async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return [];
     final res = await _supabase
         .from('orders')
@@ -188,7 +188,7 @@ class ProfileService {
 
   // ── Reviews ───────────────────────────────────────────────────────────────
   Future<List<Review>> getMyReviews() async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return [];
     final res = await _supabase
         .from('reviews')
@@ -205,7 +205,7 @@ class ProfileService {
     required int rating,
     String? comment,
   }) async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) throw Exception('Not authenticated');
     await _supabase.from('reviews').upsert({
       'user_id': userId,
@@ -221,7 +221,7 @@ class ProfileService {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   Future<Map<String, int>> getProfileStats() async {
-    final userId = await _getUserDbId();
+    final userId = await getUserDbId();
     if (userId == null) return {'orders': 0, 'wishlist': 0, 'reviews': 0};
     final results = await Future.wait([
       _supabase.from('orders').select('id').eq('user_id', userId),

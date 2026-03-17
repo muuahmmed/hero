@@ -101,7 +101,6 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         const SizedBox(height: 16),
 
-
                         Row(
                           children: [
                             Checkbox(
@@ -179,7 +178,7 @@ class _SignInScreenState extends State<SignInScreen> {
           child: const Icon(
             Icons.fitness_center,
             size: 40,
-            color: Color(0xFF3B82F6),
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 20),

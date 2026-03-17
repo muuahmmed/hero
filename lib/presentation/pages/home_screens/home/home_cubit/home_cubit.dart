@@ -10,7 +10,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   HomeCubit(this._productService) : super(HomeInitial());
 
-  // ── Fetch all products + mark which ones are in wishlist ──────────────────
+  // ── Fetch all products ────────────────────────────────────────────────────
   Future<void> fetchProducts() async {
     emit(HomeLoading());
     try {
@@ -22,14 +22,11 @@ class HomeCubit extends Cubit<HomeState> {
           .toList();
 
       final currentState = this.state;
-      emit(
-        HomeLoaded(
-          products: marked,
-          featuredProducts: currentState is HomeLoaded
-              ? currentState.featuredProducts
-              : null,
-        ),
-      );
+      emit(HomeLoaded(
+        products: marked,
+        featuredProducts:
+        currentState is HomeLoaded ? currentState.featuredProducts : null,
+      ));
     } catch (e) {
       emit(HomeError(error: e.toString()));
     }
@@ -37,8 +34,8 @@ class HomeCubit extends Cubit<HomeState> {
 
   Future<void> fetchFeaturedProducts() async {
     try {
-      final List<Product> featured = await _productService
-          .getFeaturedProducts();
+      final List<Product> featured =
+      await _productService.getFeaturedProducts();
       final Set<int> wishlistIds = await _profileService.getWishlistIds();
 
       final marked = featured
@@ -50,10 +47,11 @@ class HomeCubit extends Cubit<HomeState> {
         emit(state.copyWith(featuredProducts: marked));
       }
     } catch (e) {
-      // silently fail — featured is non-critical
+      // silently fail
     }
   }
 
+  // ── Search ────────────────────────────────────────────────────────────────
   Future<void> searchProducts(String query) async {
     if (query.trim().isEmpty) {
       await fetchProducts();
@@ -61,9 +59,8 @@ class HomeCubit extends Cubit<HomeState> {
     }
     emit(HomeLoading());
     try {
-      final List<Product> products = await _productService.searchProducts(
-        query,
-      );
+      final List<Product> products =
+      await _productService.searchProducts(query);
       final Set<int> wishlistIds = await _profileService.getWishlistIds();
 
       final marked = products
@@ -76,37 +73,71 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  // ── Toggle wishlist — saves to Supabase + updates local state ─────────────
+  // ── Advanced Filter ───────────────────────────────────────────────────────
+  Future<void> applyFilter({
+    String? query,
+    int? categoryId,
+    double? minPrice,
+    double? maxPrice,
+    bool? inStockOnly,
+    bool? egyptianOnly,
+    String sortBy = 'newest',
+  }) async {
+    emit(HomeLoading());
+    try {
+      final List<Product> products =
+      await _productService.getFilteredProducts(
+        query: query,
+        categoryId: categoryId,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        inStockOnly: inStockOnly,
+        egyptianOnly: egyptianOnly,
+        sortBy: sortBy,
+      );
+
+      final Set<int> wishlistIds = await _profileService.getWishlistIds();
+      final marked = products
+          .map((p) => p.copyWith(isFavorite: wishlistIds.contains(p.id)))
+          .toList();
+
+      final currentState = this.state;
+      emit(HomeLoaded(
+        products: marked,
+        featuredProducts:
+        currentState is HomeLoaded ? currentState.featuredProducts : null,
+      ));
+    } catch (e) {
+      emit(HomeError(error: e.toString()));
+    }
+  }
+
+  // ── Toggle Wishlist ───────────────────────────────────────────────────────
   Future<void> toggleProductFavorite(int productId) async {
     final state = this.state;
     if (state is! HomeLoaded) return;
 
-    // 1. Optimistic local update
-    final newFav =
-        !(state.products
-                .firstWhere(
-                  (p) => p.id == productId,
-                  orElse: () => state.products.first,
-                )
-                .isFavorite ??
-            false);
+    final newFav = !(state.products
+        .firstWhere(
+          (p) => p.id == productId,
+      orElse: () => state.products.first,
+    )
+        .isFavorite ??
+        false);
 
-    final List<Product> updatedProducts = state.products.map((p) {
+    final updatedProducts = state.products.map((p) {
       return p.id == productId ? p.copyWith(isFavorite: newFav) : p;
     }).toList();
 
-    final List<Product>? updatedFeatured = state.featuredProducts?.map((p) {
+    final updatedFeatured = state.featuredProducts?.map((p) {
       return p.id == productId ? p.copyWith(isFavorite: newFav) : p;
     }).toList();
 
-    emit(
-      state.copyWith(
-        products: updatedProducts,
-        featuredProducts: updatedFeatured,
-      ),
-    );
+    emit(state.copyWith(
+      products: updatedProducts,
+      featuredProducts: updatedFeatured,
+    ));
 
-    // 2. Persist to Supabase — rethrow so UI can catch and show error
     await _profileService.toggleWishlist(productId);
   }
 }

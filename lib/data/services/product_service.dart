@@ -12,13 +12,10 @@ class ProductService {
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
-      final products = (response as List)
+      return (response as List)
           .map((json) => Product.fromJson(json))
           .toList();
-
-      return products;
     } catch (e) {
-      print('Error fetching products: $e');
       throw Exception('Failed to load products');
     }
   }
@@ -36,7 +33,6 @@ class ProductService {
           .map((json) => Product.fromJson(json))
           .toList();
     } catch (e) {
-      print('Error fetching featured products: $e');
       return [];
     }
   }
@@ -84,6 +80,76 @@ class ProductService {
       return Product.fromJson(response);
     } catch (e) {
       return null;
+    }
+  }
+
+  // ── Advanced Filter ────────────────────────────────────────────────────────
+  Future<List<Product>> getFilteredProducts({
+    String? query,
+    int? categoryId,
+    double? minPrice,
+    double? maxPrice,
+    bool? inStockOnly,
+    bool? egyptianOnly,
+    String sortBy = 'newest',
+  }) async {
+    try {
+      // 1. Build all filters first
+      var request = _supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true);
+
+      if (query != null && query.trim().isNotEmpty) {
+        request = request.ilike('name', '%$query%');
+      }
+      if (categoryId != null) {
+        request = request.eq('category_id', categoryId);
+      }
+      if (minPrice != null) {
+        request = request.gte('price', minPrice);
+      }
+      if (maxPrice != null) {
+        request = request.lte('price', maxPrice);
+      }
+      if (inStockOnly == true) {
+        request = request.gt('stock', 0);
+      }
+      if (egyptianOnly == true) {
+        request = request.eq('is_egyptian', true);
+      }
+
+      // 2. Sort at the very end
+      final String column;
+      final bool ascending;
+
+      switch (sortBy) {
+        case 'price_asc':
+          column = 'price';
+          ascending = true;
+          break;
+        case 'price_desc':
+          column = 'price';
+          ascending = false;
+          break;
+        case 'name_asc':
+          column = 'name';
+          ascending = true;
+          break;
+        case 'newest':
+        default:
+          column = 'created_at';
+          ascending = false;
+          break;
+      }
+
+      final response = await request.order(column, ascending: ascending);
+
+      return (response as List)
+          .map((json) => Product.fromJson(json))
+          .toList();
+    } catch (e) {
+      throw Exception('Filter failed: $e');
     }
   }
 }

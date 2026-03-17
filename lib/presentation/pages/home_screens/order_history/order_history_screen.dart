@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hero/data/models/profile_models.dart';
+import 'package:hero/data/services/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'order_history_cubit/cubit.dart';
 import 'order_history_cubit/states.dart';
@@ -17,8 +19,118 @@ class OrderHistoryScreen extends StatelessWidget {
   }
 }
 
-class _OrderHistoryBody extends StatelessWidget {
+class _OrderHistoryBody extends StatefulWidget {
   const _OrderHistoryBody();
+
+  @override
+  State<_OrderHistoryBody> createState() => _OrderHistoryBodyState();
+}
+
+class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
+  RealtimeChannel? _channel;
+  final _notificationService = NotificationService();
+
+  // Track previous statuses to detect changes
+  final Map<int, String> _previousStatuses = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeToOrderUpdates();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  // ── Supabase Realtime Subscription ────────────────────────────────────────
+  void _subscribeToOrderUpdates() {
+    final supabase = Supabase.instance.client;
+    final authUid = supabase.auth.currentUser?.id;
+    if (authUid == null) return;
+
+    _channel = supabase
+        .channel('order_status_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'orders',
+          callback: (payload) {
+            final newRecord = payload.newRecord;
+            final orderId = newRecord['id'] as int?;
+            final newStatus = newRecord['status'] as String?;
+
+            if (orderId == null || newStatus == null) return;
+
+            // Only notify if status actually changed
+            final prevStatus = _previousStatuses[orderId];
+            if (prevStatus == newStatus) return;
+
+            _previousStatuses[orderId] = newStatus;
+
+            // Show local notification
+            _notificationService.showOrderStatusNotification(
+              orderId: orderId,
+              newStatus: newStatus,
+            );
+
+            // Refresh the orders list
+            if (mounted) {
+              context.read<OrderHistoryCubit>().refresh();
+
+              // Show in-app snackbar too
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Text(_getStatusEmoji(newStatus)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Order #$orderId is now ${newStatus.toUpperCase()}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: _statusColor(newStatus),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  duration: const Duration(seconds: 4),
+                  action: SnackBarAction(
+                    label: 'View',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      // Already on orders screen, just refresh
+                      context.read<OrderHistoryCubit>().refresh();
+                    },
+                  ),
+                ),
+              );
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  String _getStatusEmoji(String status) {
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        return '✅';
+      case 'shipped':
+        return '🚚';
+      case 'delivered':
+        return '🎉';
+      case 'cancelled':
+        return '❌';
+      default:
+        return '📦';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +147,15 @@ class _OrderHistoryBody extends StatelessWidget {
       ),
       body: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
         builder: (context, state) {
+          // Store current statuses for change detection
+          if (state is OrderHistoryLoaded) {
+            for (final order in state.orders) {
+              if (order.id != null && order.status != null) {
+                _previousStatuses.putIfAbsent(order.id!, () => order.status!);
+              }
+            }
+          }
+
           if (state is OrderHistoryLoading) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
@@ -158,7 +279,6 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(order.status ?? '');
     final date = order.createdAt;
 
     return Container(
@@ -185,7 +305,6 @@ class _OrderCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Header row ──────────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -219,7 +338,6 @@ class _OrderCard extends StatelessWidget {
                 const Divider(height: 1),
                 const SizedBox(height: 14),
 
-                // ── Product image strip ──────────────────────────────────────
                 if (order.items.isNotEmpty)
                   SizedBox(
                     height: 56,
@@ -236,7 +354,6 @@ class _OrderCard extends StatelessWidget {
 
                 if (order.items.isNotEmpty) const SizedBox(height: 14),
 
-                // ── Item names ───────────────────────────────────────────────
                 Text(
                   order.items.map((i) => i.productName ?? 'Item').join(', '),
                   style: TextStyle(
@@ -250,7 +367,6 @@ class _OrderCard extends StatelessWidget {
 
                 const SizedBox(height: 14),
 
-                // ── Footer ───────────────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -282,7 +398,6 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
 
-                // ── Progress stepper ─────────────────────────────────────────
                 if (order.status != null && order.status != 'cancelled') ...[
                   const SizedBox(height: 16),
                   _OrderProgress(status: order.status!),
@@ -312,7 +427,6 @@ class _OrderProgress extends StatelessWidget {
     return Row(
       children: List.generate(_steps.length * 2 - 1, (i) {
         if (i.isOdd) {
-          // connector line
           final stepIndex = i ~/ 2;
           final isCompleted = stepIndex < currentIndex;
           return Expanded(
@@ -374,8 +488,6 @@ class _OrderDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(order.status ?? '');
-
     return Container(
       height: MediaQuery.of(context).size.height * 0.82,
       decoration: const BoxDecoration(
@@ -384,7 +496,6 @@ class _OrderDetailSheet extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Handle
           Container(
             margin: const EdgeInsets.only(top: 12),
             width: 40,
@@ -394,7 +505,6 @@ class _OrderDetailSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(
@@ -428,25 +538,19 @@ class _OrderDetailSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Progress ─────────────────────────────────────────────
                   if (order.status != null && order.status != 'cancelled') ...[
                     _OrderProgress(status: order.status!),
                     const SizedBox(height: 24),
                   ],
-
-                  // ── Items ────────────────────────────────────────────────
                   const Text(
                     'Items',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   ...order.items.map((item) => _DetailItemRow(item: item)),
-
                   const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 16),
-
-                  // ── Summary ──────────────────────────────────────────────
                   const Text(
                     'Order Summary',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -469,7 +573,6 @@ class _OrderDetailSheet extends StatelessWidget {
                     isBold: true,
                     valueColor: const Color(0xFF3B82F6),
                   ),
-
                   if (order.shippingAddress != null &&
                       order.shippingAddress!.isNotEmpty) ...[
                     const SizedBox(height: 20),

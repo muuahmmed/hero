@@ -7,7 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_routes.dart';
 import 'config/app_theme.dart';
 import 'data/services/dio_helper.dart';
+import 'data/services/notification_service.dart';
 import 'presentation/pages/auth/cubit/auth_cubit.dart';
+
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -21,6 +23,8 @@ class MyHttpOverrides extends HttpOverrides {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await NotificationService().init();
 
   HttpOverrides.global = MyHttpOverrides();
 
