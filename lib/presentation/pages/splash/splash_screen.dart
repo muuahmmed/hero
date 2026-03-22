@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -21,16 +22,16 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final client = Supabase.instance.client;
     final hasSession = client.auth.currentSession != null;
-
-    print('🔍 Splash Screen Check:');
-    print('  - Has Session: $hasSession');
-    print('  - User Email: ${client.auth.currentUser?.email}');
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
     if (mounted) {
       if (hasSession) {
         context.go('/home');
-      } else {
+      } else if (!onboardingDone) {
         context.go('/onboarding');
+      } else {
+        context.go('/login');
       }
     }
   }
@@ -58,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black,
+                      color: Colors.black.withOpacity(0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),

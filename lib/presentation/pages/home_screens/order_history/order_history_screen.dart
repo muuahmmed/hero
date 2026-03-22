@@ -3,13 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hero/data/models/profile_models.dart';
 import 'package:hero/data/services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'order_history_cubit/cubit.dart';
 import 'order_history_cubit/states.dart';
 
 class OrderHistoryScreen extends StatelessWidget {
   const OrderHistoryScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -21,7 +19,6 @@ class OrderHistoryScreen extends StatelessWidget {
 
 class _OrderHistoryBody extends StatefulWidget {
   const _OrderHistoryBody();
-
   @override
   State<_OrderHistoryBody> createState() => _OrderHistoryBodyState();
 }
@@ -29,8 +26,6 @@ class _OrderHistoryBody extends StatefulWidget {
 class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
   RealtimeChannel? _channel;
   final _notificationService = NotificationService();
-
-  // Track previous statuses to detect changes
   final Map<int, String> _previousStatuses = {};
 
   @override
@@ -45,12 +40,10 @@ class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
     super.dispose();
   }
 
-  // ── Supabase Realtime Subscription ────────────────────────────────────────
   void _subscribeToOrderUpdates() {
     final supabase = Supabase.instance.client;
     final authUid = supabase.auth.currentUser?.id;
     if (authUid == null) return;
-
     _channel = supabase
         .channel('order_status_changes')
         .onPostgresChanges(
@@ -58,42 +51,21 @@ class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
           schema: 'public',
           table: 'orders',
           callback: (payload) {
-            final newRecord = payload.newRecord;
-            final orderId = newRecord['id'] as int?;
-            final newStatus = newRecord['status'] as String?;
-
+            final orderId = payload.newRecord['id'] as int?;
+            final newStatus = payload.newRecord['status'] as String?;
             if (orderId == null || newStatus == null) return;
-
-            // Only notify if status actually changed
-            final prevStatus = _previousStatuses[orderId];
-            if (prevStatus == newStatus) return;
-
+            if (_previousStatuses[orderId] == newStatus) return;
             _previousStatuses[orderId] = newStatus;
-
-            // Show local notification
             _notificationService.showOrderStatusNotification(
               orderId: orderId,
               newStatus: newStatus,
             );
-
-            // Refresh the orders list
             if (mounted) {
               context.read<OrderHistoryCubit>().refresh();
-
-              // Show in-app snackbar too
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Row(
-                    children: [
-                      Text(_getStatusEmoji(newStatus)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Order #$orderId is now ${newStatus.toUpperCase()}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
+                  content: Text(
+                    'Order #$orderId is now ${newStatus.toUpperCase()}',
                   ),
                   backgroundColor: _statusColor(newStatus),
                   behavior: SnackBarBehavior.floating,
@@ -101,35 +73,12 @@ class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   duration: const Duration(seconds: 4),
-                  action: SnackBarAction(
-                    label: 'View',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      // Already on orders screen, just refresh
-                      context.read<OrderHistoryCubit>().refresh();
-                    },
-                  ),
                 ),
               );
             }
           },
         )
         .subscribe();
-  }
-
-  String _getStatusEmoji(String status) {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return '✅';
-      case 'shipped':
-        return '🚚';
-      case 'delivered':
-        return '🎉';
-      case 'cancelled':
-        return '❌';
-      default:
-        return '📦';
-    }
   }
 
   @override
@@ -147,39 +96,28 @@ class _OrderHistoryBodyState extends State<_OrderHistoryBody> {
       ),
       body: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
         builder: (context, state) {
-          // Store current statuses for change detection
           if (state is OrderHistoryLoaded) {
-            for (final order in state.orders) {
-              if (order.id != null && order.status != null) {
-                _previousStatuses.putIfAbsent(order.id!, () => order.status!);
-              }
+            for (final o in state.orders) {
+              if (o.id != null && o.status != null)
+                _previousStatuses.putIfAbsent(o.id!, () => o.status!);
             }
           }
-
-          if (state is OrderHistoryLoading) {
+          if (state is OrderHistoryLoading)
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
             );
-          }
-          if (state is OrderHistoryError) {
+          if (state is OrderHistoryError)
             return _ErrorView(
               message: state.message,
               onRetry: () => context.read<OrderHistoryCubit>().loadOrders(),
             );
-          }
-          if (state is OrderHistoryLoaded) {
-            return _LoadedView(state: state);
-          }
+          if (state is OrderHistoryLoaded) return _LoadedView(state: state);
           return const SizedBox.shrink();
         },
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Loaded View
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _LoadedView extends StatelessWidget {
   final OrderHistoryLoaded state;
@@ -196,14 +134,12 @@ class _LoadedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orders = state.filtered;
-
     return RefreshIndicator(
       color: const Color(0xFF3B82F6),
       onRefresh: () => context.read<OrderHistoryCubit>().refresh(),
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          // ── Filter chips ──────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: SizedBox(
               height: 56,
@@ -234,8 +170,6 @@ class _LoadedView extends StatelessWidget {
               ),
             ),
           ),
-
-          // ── Count ─────────────────────────────────────────────────────────
           if (state.orders.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -246,8 +180,6 @@ class _LoadedView extends StatelessWidget {
                 ),
               ),
             ),
-
-          // ── Orders list / empty ───────────────────────────────────────────
           if (orders.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -269,18 +201,12 @@ class _LoadedView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Order Card
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _OrderCard extends StatelessWidget {
   final AppOrder order;
   const _OrderCard({required this.order});
 
   @override
   Widget build(BuildContext context) {
-    final date = order.createdAt;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -318,27 +244,23 @@ class _OrderCard extends StatelessWidget {
                             fontSize: 15,
                           ),
                         ),
-                        if (date != null) ...[
-                          const SizedBox(height: 2),
+                        if (order.createdAt != null)
                           Text(
-                            _formatDate(date),
+                            _formatDate(order.createdAt!),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[500],
                             ),
                           ),
-                        ],
                       ],
                     ),
                     _StatusBadge(status: order.status ?? 'pending'),
                   ],
                 ),
-
                 const SizedBox(height: 14),
                 const Divider(height: 1),
                 const SizedBox(height: 14),
-
-                if (order.items.isNotEmpty)
+                if (order.items.isNotEmpty) ...[
                   SizedBox(
                     height: 56,
                     child: Row(
@@ -351,9 +273,8 @@ class _OrderCard extends StatelessWidget {
                       ],
                     ),
                   ),
-
-                if (order.items.isNotEmpty) const SizedBox(height: 14),
-
+                  const SizedBox(height: 14),
+                ],
                 Text(
                   order.items.map((i) => i.productName ?? 'Item').join(', '),
                   style: TextStyle(
@@ -364,9 +285,7 @@ class _OrderCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const SizedBox(height: 14),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -397,10 +316,41 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 if (order.status != null && order.status != 'cancelled') ...[
                   const SizedBox(height: 16),
-                  _OrderProgress(status: order.status!),
+                  AnimatedOrderTimeline(status: order.status!),
+                ],
+                if (order.status == 'cancelled') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.cancel_outlined,
+                          color: Colors.red,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'This order was cancelled',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -411,68 +361,327 @@ class _OrderCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Order Progress Bar
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _OrderProgress extends StatelessWidget {
+// ── Horizontal Animated Timeline (in card) ─────────────────────────────────
+class AnimatedOrderTimeline extends StatefulWidget {
   final String status;
-  const _OrderProgress({required this.status});
+  const AnimatedOrderTimeline({super.key, required this.status});
+  @override
+  State<AnimatedOrderTimeline> createState() => _AnimatedOrderTimelineState();
+}
 
-  static const _steps = ['pending', 'confirmed', 'shipped', 'delivered'];
+class _AnimatedOrderTimelineState extends State<AnimatedOrderTimeline>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _anim;
+
+  static const _steps = [
+    (label: 'Pending', icon: Icons.hourglass_empty, sub: 'Placed'),
+    (label: 'Confirmed', icon: Icons.check_circle_outline, sub: 'Preparing'),
+    (label: 'Shipped', icon: Icons.local_shipping_outlined, sub: 'On the way'),
+    (label: 'Delivered', icon: Icons.home_outlined, sub: 'Done!'),
+  ];
+
+  int get _currentIndex {
+    switch (widget.status.toLowerCase()) {
+      case 'pending':
+        return 0;
+      case 'confirmed':
+        return 1;
+      case 'shipped':
+        return 2;
+      case 'delivered':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _anim = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _steps.indexOf(status);
-    return Row(
-      children: List.generate(_steps.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          final stepIndex = i ~/ 2;
-          final isCompleted = stepIndex < currentIndex;
-          return Expanded(
-            child: Container(
-              height: 2,
-              color: isCompleted ? const Color(0xFF3B82F6) : Colors.grey[200],
-            ),
-          );
-        }
-        final stepIndex = i ~/ 2;
-        final isCompleted = stepIndex <= currentIndex;
-        final isCurrent = stepIndex == currentIndex;
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
         return Column(
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isCurrent ? 14 : 10,
-              height: isCurrent ? 14 : 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isCompleted ? const Color(0xFF3B82F6) : Colors.grey[200],
-                border: isCurrent
-                    ? Border.all(color: const Color(0xFF3B82F6), width: 2)
-                    : null,
-              ),
+            Row(
+              children: List.generate(_steps.length * 2 - 1, (i) {
+                if (i.isOdd) {
+                  final stepIndex = i ~/ 2;
+                  final isCompleted = stepIndex < _currentIndex;
+                  return Expanded(
+                    child: Stack(
+                      children: [
+                        Container(height: 3, color: Colors.grey[200]),
+                        if (isCompleted)
+                          FractionallySizedBox(
+                            widthFactor: _anim.value,
+                            child: Container(
+                              height: 3,
+                              color: const Color(0xFF3B82F6),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+                final stepIndex = i ~/ 2;
+                final isCompleted = stepIndex <= _currentIndex;
+                final isCurrent = stepIndex == _currentIndex;
+                final step = _steps[stepIndex];
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  width: isCurrent ? 36 : 28,
+                  height: isCurrent ? 36 : 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCompleted
+                        ? const Color(0xFF3B82F6)
+                        : Colors.grey[200],
+                    border: isCurrent
+                        ? Border.all(color: const Color(0xFF3B82F6), width: 2.5)
+                        : null,
+                    boxShadow: isCurrent
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(0.3),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      isCompleted && !isCurrent ? Icons.check : step.icon,
+                      color: isCompleted ? Colors.white : Colors.grey[400],
+                      size: isCurrent ? 18 : 14,
+                    ),
+                  ),
+                );
+              }),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _capitalize(_steps[stepIndex]),
-              style: TextStyle(
-                fontSize: 9,
-                color: isCompleted ? const Color(0xFF3B82F6) : Colors.grey[400],
-                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-              ),
+            const SizedBox(height: 8),
+            Row(
+              children: List.generate(_steps.length * 2 - 1, (i) {
+                if (i.isOdd) return const Expanded(child: SizedBox());
+                final stepIndex = i ~/ 2;
+                final isCompleted = stepIndex <= _currentIndex;
+                final isCurrent = stepIndex == _currentIndex;
+                return SizedBox(
+                  width: isCurrent ? 36 : 28,
+                  child: Text(
+                    _steps[stepIndex].label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: isCurrent
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isCompleted
+                          ? const Color(0xFF3B82F6)
+                          : Colors.grey[400],
+                    ),
+                  ),
+                );
+              }),
             ),
           ],
+        );
+      },
+    );
+  }
+}
+
+// ── Vertical Timeline (in detail sheet) ────────────────────────────────────
+class _VerticalTimeline extends StatelessWidget {
+  final String status;
+  const _VerticalTimeline({required this.status});
+
+  static const _steps = [
+    (
+      title: 'Order Placed',
+      sub: 'Your order has been received',
+      icon: Icons.receipt_outlined,
+    ),
+    (
+      title: 'Confirmed',
+      sub: 'Your order is being prepared',
+      icon: Icons.check_circle_outline,
+    ),
+    (
+      title: 'Shipped',
+      sub: 'Your order is on the way',
+      icon: Icons.local_shipping_outlined,
+    ),
+    (
+      title: 'Delivered',
+      sub: 'Your order has been delivered!',
+      icon: Icons.home_outlined,
+    ),
+  ];
+
+  int get _currentIndex {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 0;
+      case 'confirmed':
+        return 1;
+      case 'shipped':
+        return 2;
+      case 'delivered':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(_steps.length, (index) {
+        final step = _steps[index];
+        final isCompleted = index <= _currentIndex;
+        final isCurrent = index == _currentIndex;
+        final isLast = index == _steps.length - 1;
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 300 + (index * 150)),
+          curve: Curves.easeOut,
+          builder: (_, value, child) => Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 20 * (1 - value)),
+              child: child,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCompleted
+                          ? const Color(0xFF3B82F6)
+                          : Colors.grey[200],
+                      boxShadow: isCurrent
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF3B82F6).withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 3,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isCompleted ? Icons.check : step.icon,
+                        color: isCompleted ? Colors.white : Colors.grey[400],
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  if (!isLast)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 600),
+                      width: 2,
+                      height: 50,
+                      color: isCompleted && index < _currentIndex
+                          ? const Color(0xFF3B82F6)
+                          : Colors.grey[200],
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: isLast ? 0 : 36),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            step.title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isCurrent
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isCompleted
+                                  ? Colors.black87
+                                  : Colors.grey[400],
+                            ),
+                          ),
+                          if (isCurrent) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Text(
+                                'Current',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF3B82F6),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        step.sub,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isCompleted
+                              ? Colors.grey[600]
+                              : Colors.grey[400],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       }),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Order Detail Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Order Detail Sheet ──────────────────────────────────────────────────────
 void _showOrderDetail(BuildContext context, AppOrder order) {
   showModalBottomSheet(
     context: context,
@@ -489,7 +698,7 @@ class _OrderDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
+      height: MediaQuery.of(context).size.height * 0.85,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -539,9 +748,52 @@ class _OrderDetailSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (order.status != null && order.status != 'cancelled') ...[
-                    _OrderProgress(status: order.status!),
+                    const Text(
+                      'Order Timeline',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _VerticalTimeline(status: order.status!),
                     const SizedBox(height: 24),
                   ],
+                  if (order.status == 'cancelled')
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cancel, color: Colors.red, size: 24),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Order Cancelled',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              Text(
+                                'Contact support for assistance',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   const Text(
                     'Items',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -619,14 +871,10 @@ class _OrderDetailSheet extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Small Widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Small Widgets ───────────────────────────────────────────────────────────
 class _StatusBadge extends StatelessWidget {
   final String status;
   const _StatusBadge({required this.status});
-
   @override
   Widget build(BuildContext context) {
     final color = _statusColor(status);
@@ -664,14 +912,12 @@ class _FilterChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final Color color;
-
   const _FilterChip({
     required this.label,
     required this.isSelected,
     required this.onTap,
     required this.color,
   });
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -704,7 +950,6 @@ class _FilterChip extends StatelessWidget {
 class _ProductThumb extends StatelessWidget {
   final AppOrderItem item;
   const _ProductThumb({required this.item});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -717,7 +962,7 @@ class _ProductThumb extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: item.productImage != null && item.productImage!.isNotEmpty
+        child: item.productImage?.isNotEmpty == true
             ? Image.network(
                 item.productImage!,
                 fit: BoxFit.cover,
@@ -733,7 +978,6 @@ class _ProductThumb extends StatelessWidget {
 class _MoreThumb extends StatelessWidget {
   final int count;
   const _MoreThumb({required this.count});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -760,7 +1004,6 @@ class _MoreThumb extends StatelessWidget {
 class _DetailItemRow extends StatelessWidget {
   final AppOrderItem item;
   const _DetailItemRow({required this.item});
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -776,7 +1019,7 @@ class _DetailItemRow extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: item.productImage != null && item.productImage!.isNotEmpty
+              child: item.productImage?.isNotEmpty == true
                   ? Image.network(
                       item.productImage!,
                       fit: BoxFit.cover,
@@ -823,14 +1066,12 @@ class _SummaryRow extends StatelessWidget {
   final String value;
   final bool isBold;
   final Color? valueColor;
-
   const _SummaryRow({
     required this.label,
     required this.value,
     this.isBold = false,
     this.valueColor,
   });
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -860,7 +1101,6 @@ class _SummaryRow extends StatelessWidget {
 class _EmptyOrders extends StatelessWidget {
   final bool isFiltered;
   const _EmptyOrders({required this.isFiltered});
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -894,7 +1134,7 @@ class _EmptyOrders extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               isFiltered
-                  ? 'Try a different filter to see your orders.'
+                  ? 'Try a different filter.'
                   : 'When you place orders, they will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -914,7 +1154,6 @@ class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
   const _ErrorView({required this.message, required this.onRetry});
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -954,10 +1193,6 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 Color _statusColor(String status) {
   switch (status.toLowerCase()) {

@@ -5,8 +5,40 @@ import 'package:hero/data/services/order_service.dart';
 import 'cart_cubit/cart_cubit.dart';
 import 'cart_cubit/cart_states.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _emptyController;
+  late Animation<double> _emptyScale;
+  late Animation<double> _emptyFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _emptyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _emptyScale =
+        CurvedAnimation(parent: _emptyController, curve: Curves.elasticOut)
+            .drive(Tween(begin: 0.0, end: 1.0));
+    _emptyFade =
+        CurvedAnimation(parent: _emptyController, curve: Curves.easeIn)
+            .drive(Tween(begin: 0.0, end: 1.0));
+    _emptyController.forward();
+  }
+
+  @override
+  void dispose() {
+    _emptyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +61,7 @@ class CartScreen extends StatelessWidget {
                   child: const Text(
                     'Clear',
                     style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        color: Colors.red, fontWeight: FontWeight.w600),
                   ),
                 );
               }
@@ -52,76 +82,73 @@ class CartScreen extends StatelessWidget {
   }
 
   // ── Empty state ────────────────────────────────────────────────────────────
-
   Widget _buildEmptyCart(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 140,
-            height: 140,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.shopping_cart_outlined,
-              size: 70,
-              color: Color(0xFF3B82F6),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Your cart is empty',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Add products to your cart\nand they will appear here',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => appTabIndex.value = 0, // → Home
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+      child: FadeTransition(
+        opacity: _emptyFade,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ScaleTransition(
+              scale: _emptyScale,
+              child: Container(
+                width: 140,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 70,
+                  color: Color(0xFF3B82F6),
+                ),
               ),
-              elevation: 0,
             ),
-            child: const Text(
-              'Browse Products',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            const SizedBox(height: 24),
+            const Text(
+              'Your cart is empty',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              'Add products to your cart\nand they will appear here',
+              textAlign: TextAlign.center,
+              style:
+              TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () => appTabIndex.value = 0,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              child: const Text('Browse Products',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 16)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   // ── Cart content ───────────────────────────────────────────────────────────
-
   Widget _buildCartContent(BuildContext context, CartLoaded state) {
     final total = context.read<CartCubit>().getTotal();
     const deliveryFee = 50.0;
     final grandTotal = total + deliveryFee;
-    final itemCount = state.items.fold<int>(
-      0,
-      (sum, item) => sum + item.quantity,
-    );
+    final itemCount =
+    state.items.fold<int>(0, (sum, item) => sum + item.quantity);
 
     return Column(
       children: [
@@ -131,7 +158,8 @@ class CartScreen extends StatelessWidget {
             itemCount: state.items.length,
             itemBuilder: (context, index) {
               final item = state.items[index];
-              return _CartItemCard(
+              return _AnimatedCartItem(
+                index: index,
                 item: item,
                 onRemove: () =>
                     context.read<CartCubit>().removeFromCart(item.productId),
@@ -139,10 +167,9 @@ class CartScreen extends StatelessWidget {
                   if (qty <= 0) {
                     context.read<CartCubit>().removeFromCart(item.productId);
                   } else {
-                    context.read<CartCubit>().updateQuantity(
-                      item.productId,
-                      qty,
-                    );
+                    context
+                        .read<CartCubit>()
+                        .updateQuantity(item.productId, qty);
                   }
                 },
               );
@@ -155,11 +182,11 @@ class CartScreen extends StatelessWidget {
   }
 
   Widget _buildOrderSummary(
-    BuildContext context,
-    double total,
-    double grandTotal,
-    int itemCount,
-  ) {
+      BuildContext context,
+      double total,
+      double grandTotal,
+      int itemCount,
+      ) {
     const deliveryFee = 50.0;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -180,18 +207,17 @@ class CartScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Order Summary',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          const Text('Order Summary',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          _summaryRow('Items ($itemCount)', '${total.toStringAsFixed(0)} EGP'),
+          _summaryRow(
+              'Items ($itemCount)', '${total.toStringAsFixed(0)} EGP'),
           const SizedBox(height: 8),
-          _summaryRow('Delivery', '${deliveryFee.toStringAsFixed(0)} EGP'),
+          _summaryRow(
+              'Delivery', '${deliveryFee.toStringAsFixed(0)} EGP'),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(),
-          ),
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider()),
           _summaryRow(
             'Total',
             '${grandTotal.toStringAsFixed(0)} EGP',
@@ -206,13 +232,13 @@ class CartScreen extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+                  borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
             child: Text(
               'Checkout — ${grandTotal.toStringAsFixed(0)} EGP',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
         ],
@@ -220,31 +246,25 @@ class CartScreen extends StatelessWidget {
     );
   }
 
-  Widget _summaryRow(
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? valueColor,
-  }) {
+  Widget _summaryRow(String label, String value,
+      {bool isBold = false, Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isBold ? 16 : 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: isBold ? Colors.black : Colors.grey[600],
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 16 : 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-            color: valueColor ?? (isBold ? Colors.black : Colors.black87),
-          ),
-        ),
+        Text(label,
+            style: TextStyle(
+              fontSize: isBold ? 16 : 14,
+              fontWeight:
+              isBold ? FontWeight.bold : FontWeight.normal,
+              color: isBold ? Colors.black : Colors.grey[600],
+            )),
+        Text(value,
+            style: TextStyle(
+              fontSize: isBold ? 16 : 14,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: valueColor ??
+                  (isBold ? Colors.black : Colors.black87),
+            )),
       ],
     );
   }
@@ -253,11 +273,11 @@ class CartScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Clear Cart'),
         content: const Text(
-          'Are you sure you want to remove all items from your cart?',
-        ),
+            'Are you sure you want to remove all items from your cart?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -272,8 +292,7 @@ class CartScreen extends StatelessWidget {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Clear All'),
           ),
@@ -296,10 +315,73 @@ class CartScreen extends StatelessWidget {
   }
 }
 
+// ── Animated Cart Item ────────────────────────────────────────────────────────
+class _AnimatedCartItem extends StatefulWidget {
+  final int index;
+  final dynamic item;
+  final VoidCallback onRemove;
+  final ValueChanged<int> onQuantityChange;
+
+  const _AnimatedCartItem({
+    required this.index,
+    required this.item,
+    required this.onRemove,
+    required this.onQuantityChange,
+  });
+
+  @override
+  State<_AnimatedCartItem> createState() => _AnimatedCartItemState();
+}
+
+class _AnimatedCartItemState extends State<_AnimatedCartItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn)
+        .drive(Tween(begin: 0.0, end: 1.0));
+    _slide = CurvedAnimation(parent: _controller, curve: Curves.easeOut)
+        .drive(Tween(
+        begin: const Offset(0.3, 0), end: Offset.zero));
+
+    Future.delayed(Duration(milliseconds: 80 * widget.index), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: _CartItemCard(
+          item: widget.item,
+          onRemove: widget.onRemove,
+          onQuantityChange: widget.onQuantityChange,
+        ),
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Cart Item Card
 // ─────────────────────────────────────────────────────────────────────────────
-
 class _CartItemCard extends StatelessWidget {
   final dynamic item;
   final VoidCallback onRemove;
@@ -335,13 +417,15 @@ class _CartItemCard extends StatelessWidget {
               width: 80,
               height: 80,
               color: Colors.grey[100],
-              child: item.productImage != null && item.productImage!.isNotEmpty
+              child: item.productImage != null &&
+                  item.productImage!.isNotEmpty
                   ? Image.network(
-                      item.productImage!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.fitness_center, color: Colors.grey),
-                    )
+                item.productImage!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.fitness_center,
+                    color: Colors.grey),
+              )
                   : const Icon(Icons.fitness_center, color: Colors.grey),
             ),
           ),
@@ -353,9 +437,7 @@ class _CartItemCard extends StatelessWidget {
                 Text(
                   item.productName ?? 'Product',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                      fontWeight: FontWeight.w600, fontSize: 14),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -363,40 +445,37 @@ class _CartItemCard extends StatelessWidget {
                 Text(
                   '${item.unitPrice.toStringAsFixed(0)} EGP each',
                   style: const TextStyle(
-                    color: Color(0xFF3B82F6),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                      color: Color(0xFF3B82F6),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     _QuantityButton(
                       icon: Icons.remove,
-                      onTap: () => onQuantityChange(item.quantity - 1),
+                      onTap: () =>
+                          onQuantityChange(item.quantity - 1),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Text(
-                        '${item.quantity}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: Text('${item.quantity}',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
                     ),
                     _QuantityButton(
                       icon: Icons.add,
-                      onTap: () => onQuantityChange(item.quantity + 1),
+                      onTap: () =>
+                          onQuantityChange(item.quantity + 1),
                     ),
                     const Spacer(),
                     Text(
                       '${(item.unitPrice * item.quantity).toStringAsFixed(0)} EGP',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.grey[800],
-                      ),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[800]),
                     ),
                   ],
                 ),
@@ -405,7 +484,8 @@ class _CartItemCard extends StatelessWidget {
           ),
           IconButton(
             onPressed: onRemove,
-            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
+            icon: const Icon(Icons.delete_outline,
+                color: Colors.red, size: 22),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
@@ -438,9 +518,8 @@ class _QuantityButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Checkout Sheet — Supabase connected via OrderService
+// Checkout Sheet
 // ─────────────────────────────────────────────────────────────────────────────
-
 class _CheckoutSheet extends StatefulWidget {
   final double total;
   const _CheckoutSheet({required this.total});
@@ -504,10 +583,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Checkout',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                const Text('Checkout',
+                    style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
@@ -524,83 +602,64 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Total banner
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6).withOpacity(0.05),
+                        color:
+                        const Color(0xFF3B82F6).withOpacity(0.05),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: const Color(0xFF3B82F6).withOpacity(0.2),
-                        ),
+                            color: const Color(0xFF3B82F6)
+                                .withOpacity(0.2)),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Order Total',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '${widget.total.toStringAsFixed(0)} EGP',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF3B82F6),
-                            ),
-                          ),
+                          const Text('Order Total',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600)),
+                          Text('${widget.total.toStringAsFixed(0)} EGP',
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF3B82F6))),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Address
-                    const Text(
-                      'Delivery Address',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    const Text('Delivery Address',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _addressCtrl,
                       maxLines: 3,
                       decoration: _deco(
-                        hint: 'Enter your full delivery address...',
-                        icon: Icons.location_on_outlined,
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
+                          hint: 'Enter your full delivery address...',
+                          icon: Icons.location_on_outlined),
+                      validator: (v) =>
+                      (v == null || v.trim().isEmpty)
                           ? 'Please enter your address'
                           : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // Phone
                     TextFormField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
                       decoration: _deco(
-                        hint: 'Phone number',
-                        icon: Icons.phone_outlined,
-                      ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
+                          hint: 'Phone number',
+                          icon: Icons.phone_outlined),
+                      validator: (v) =>
+                      (v == null || v.trim().isEmpty)
                           ? 'Please enter your phone'
                           : null,
                     ),
                     const SizedBox(height: 24),
-
-                    // Payment method
-                    const Text(
-                      'Payment Method',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    const Text('Payment Method',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     _PaymentOption(
                       value: 'cash',
@@ -608,7 +667,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       label: 'Cash on Delivery',
                       icon: Icons.money,
                       color: Colors.green,
-                      onChanged: (v) => setState(() => _paymentMethod = v!),
+                      onChanged: (v) =>
+                          setState(() => _paymentMethod = v!),
                     ),
                     const SizedBox(height: 8),
                     _PaymentOption(
@@ -617,7 +677,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       label: 'Credit / Debit Card',
                       icon: Icons.credit_card,
                       color: Colors.blue,
-                      onChanged: (v) => setState(() => _paymentMethod = v!),
+                      onChanged: (v) =>
+                          setState(() => _paymentMethod = v!),
                     ),
                     const SizedBox(height: 8),
                     _PaymentOption(
@@ -626,19 +687,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       label: 'Vodafone Cash',
                       icon: Icons.phone_android,
                       color: Colors.red,
-                      onChanged: (v) => setState(() => _paymentMethod = v!),
+                      onChanged: (v) =>
+                          setState(() => _paymentMethod = v!),
                     ),
                     const SizedBox(height: 20),
-
-                    // Notes
                     TextFormField(
                       controller: _notesCtrl,
                       maxLines: 2,
                       decoration: _deco(
-                        hint: 'Order notes (optional)',
-                        icon: Icons.note_outlined,
-                        iconColor: Colors.grey,
-                      ),
+                          hint: 'Order notes (optional)',
+                          icon: Icons.note_outlined,
+                          iconColor: Colors.grey),
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -646,15 +705,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               ),
             ),
           ),
-
-          // Place order button
           Padding(
             padding: EdgeInsets.fromLTRB(
-              20,
-              0,
-              20,
-              MediaQuery.of(context).padding.bottom + 12,
-            ),
+                20, 0, 20, MediaQuery.of(context).padding.bottom + 12),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -664,26 +717,19 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                      borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
                 child: _isPlacingOrder
                     ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                     : Text(
-                        'Place Order — ${widget.total.toStringAsFixed(0)} EGP',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                    'Place Order — ${widget.total.toStringAsFixed(0)} EGP',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
           ),
@@ -695,7 +741,6 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   Future<void> _placeOrder() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isPlacingOrder = true);
-
     try {
       final cartCubit = context.read<CartCubit>();
       final cartState = cartCubit.state;
@@ -703,18 +748,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         setState(() => _isPlacingOrder = false);
         return;
       }
-
       await _orderService.placeOrder(
         items: cartState.items,
         total: widget.total,
         shippingAddress: _addressCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         paymentMethod: _paymentMethod,
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        notes: _notesCtrl.text.trim().isEmpty
+            ? null
+            : _notesCtrl.text.trim(),
       );
-
       cartCubit.clearCart();
-
       if (mounted) {
         Navigator.pop(context);
         _showSuccessOverlay(context);
@@ -722,16 +766,13 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isPlacingOrder = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to place order: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to place order: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
       }
     }
   }
@@ -739,7 +780,6 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   void _showSuccessOverlay(BuildContext context) {
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
-
     entry = OverlayEntry(
       builder: (_) => Positioned(
         top: MediaQuery.of(context).size.height * 0.30,
@@ -747,62 +787,61 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         right: 32,
         child: Material(
           color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    shape: BoxShape.circle,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.elasticOut,
+            builder: (_, value, child) =>
+                Transform.scale(scale: value, child: child),
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 50,
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_circle,
+                        color: Colors.green, size: 50),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Order Placed! 🎉',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your order of ${widget.total.toStringAsFixed(0)} EGP has been placed successfully.\nWe\'ll contact you shortly.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    height: 1.5,
-                    fontSize: 14,
+                  const SizedBox(height: 16),
+                  const Text('Order Placed! 🎉',
+                      style: TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your order of ${widget.total.toStringAsFixed(0)} EGP has been placed successfully.\nWe\'ll contact you shortly.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.grey[600], height: 1.5, fontSize: 14),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
-
     overlay.insert(entry);
-
     Future.delayed(const Duration(seconds: 3), () {
       entry.remove();
-      appTabIndex.value = 3; // → Profile tab
+      appTabIndex.value = 3;
     });
   }
 
@@ -821,15 +860,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+        borderSide:
+        const BorderSide(color: Color(0xFF3B82F6), width: 2),
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Payment Option
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PaymentOption extends StatelessWidget {
   final String value;
@@ -855,7 +891,8 @@ class _PaymentOption extends StatelessWidget {
       onTap: () => onChanged(value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding:
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected ? color.withOpacity(0.07) : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
@@ -866,16 +903,17 @@ class _PaymentOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? color : Colors.grey[500], size: 22),
+            Icon(icon,
+                color: isSelected ? color : Colors.grey[500], size: 22),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? color : Colors.black87,
-                ),
-              ),
+              child: Text(label,
+                  style: TextStyle(
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isSelected ? color : Colors.black87,
+                  )),
             ),
             Radio<String>(
               value: value,
